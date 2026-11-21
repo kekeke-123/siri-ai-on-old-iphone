@@ -13,7 +13,7 @@ index a76af84..e5ef375 100644
 +#include <pthread/qos.h>
 +static bool spk_qos_enabled(void) {
 +    const char * v = getenv("SPK_DISABLE_QOS");
-+    return v == nullptr || v[0] == '0';
++    return v == NULL || v[0] == '0';
 +}
 +#endif
 +
