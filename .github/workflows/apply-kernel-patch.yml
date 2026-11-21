@@ -6,12 +6,12 @@ name: apply-kernel-patch
 # GITHUB_TOKEN exists.
 #
 # Contract: drop patches/000[45]-*.patch plus a .kernel-patch-pending marker in
-# a [skip ci] commit (paths-ignored by build.yml, so it costs no build). The
-# cron below picks it up, applies, commits and removes the marker.
+# a commit. This job applies, commits and removes the marker.
 
 on:
-  schedule:
-    - cron: "*/5 * * * *"
+  push:
+    paths:
+      - ".kernel-patch-pending"
   workflow_dispatch:
 
 permissions:
@@ -26,17 +26,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Bail out when nothing is pending
-        id: pending
-        run: |
-          if [ -f .kernel-patch-pending ]; then
-            echo "go=yes" >> "$GITHUB_OUTPUT"
-          else
-            echo "go=no" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Apply pending patches
-        if: steps.pending.outputs.go == 'yes'
         run: |
           set -euo pipefail
           applied=0
@@ -55,5 +45,5 @@ jobs:
           fi
           git add -A
           git -c user.name='spk-bot' -c user.email='spk-bot@users.noreply.github.com' \
-              commit -m "kernel: diverging arch support, qwen sampler defaults, chatml fallback, headless selftest"
+              commit -m "kernel: qwen35 arch, qwen sampler defaults, chatml fallback, selftest, build path filters"
           git push origin HEAD:main
