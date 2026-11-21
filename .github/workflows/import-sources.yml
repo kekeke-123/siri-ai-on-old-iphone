@@ -1,5 +1,7 @@
 name: import-sources
 
+# One-shot: pulls the source archive, verifies the digest, expands it and
+# starts the iOS build. Only touches source paths (no workflow files).
 on:
   workflow_dispatch:
   push:
@@ -11,39 +13,37 @@ permissions:
   actions: write
 
 jobs:
-  probe:
+  import:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Probe fetch
-        id: probe
-        continue-on-error: true
+      - name: Fetch and verify
         run: |
-          {
-            URL='https://temp.sh/tugNU/spk-src.tgz'
-            echo "== POST $URL"
-            curl -sS -L -X POST -D /tmp/hdr -o /tmp/src.tgz "$URL" || echo "curl exit $?"
-            echo '== response headers'; cat /tmp/hdr 2>/dev/null | head -25
-            echo '== size'; ls -l /tmp/src.tgz 2>/dev/null
-            echo '== digest'; sha256sum /tmp/src.tgz 2>/dev/null
-            echo '== first bytes'; head -c 120 /tmp/src.tgz 2>/dev/null | od -c | head -4
-            echo '== tar entries'; tar tzf /tmp/src.tgz 2>/dev/null | head -6
-          } > /tmp/log.txt 2>&1
-          cat /tmp/log.txt
+          set -euo pipefail
+          curl -sSL -X POST -o /tmp/src.tgz 'https://temp.sh/KvcHr/spk3.tgz'
+          ls -l /tmp/src.tgz
+          echo 'a346f262e623ea1ab6a28fec5720ab3ed3d93f906035649dff5d82406a1e8c81  /tmp/src.tgz' | sha256sum -c -
 
-      - name: Publish log
-        if: always()
+      - name: Expand
         run: |
-          {
-            echo '# probe';
-            echo "outcome: ${{ steps.probe.outcome }}";
-            echo '```';
-            cat /tmp/log.txt 2>/dev/null || echo none;
-            echo '```';
-          } > IMPORT_LOG.md
-          git config user.name 'spk-import'
+          set -euo pipefail
+          tar xzf /tmp/src.tgz -C .
+          rm -rf import IMPORT_LOG.md
+          git status --short | wc -l
+
+      - name: Commit and push
+        run: |
+          set -euo pipefail
+          git config user.name  'spk-import'
           git config user.email 'spk-import@users.noreply.github.com'
-          git add IMPORT_LOG.md
-          git commit -m 'ci: probe log' || true
-          git push origin HEAD:main || true
+          git add -A
+          git commit -m 'feat: import Siri Plus kernel, app, scripts and patches'
+          git push origin HEAD:main
+
+      - name: Start the iOS build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run build.yml --ref main || true

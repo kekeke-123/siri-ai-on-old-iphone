@@ -1,0 +1,77 @@
+name: build
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ "v*" ]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ipa:
+    runs-on: macos-14
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          brew install xcodegen
+
+      - name: Fetch runtime and apply kernel patches
+        run: ./scripts/fetch-runtime.sh
+
+      - name: Kernel syntax gate
+        run: |
+          clang++ -std=c++17 -fsyntax-only \
+            -I kernel/include -I kernel/include/spk -I kernel/src \
+            -I third_party/runtime/include \
+            -I third_party/runtime/ggml/include \
+            -I third_party/runtime/tools/mtmd \
+            kernel/src/*.cpp
+
+      - name: Build kernel for iOS arm64
+        run: ./scripts/build-ios.sh
+
+      - name: Generate vendor xcconfig
+        run: ./scripts/gen-xcconfig.sh
+
+      - name: Generate Xcode project
+        working-directory: app
+        run: xcodegen generate
+
+      - name: Build app (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project app/SiriAI.xcodeproj \
+            -scheme SiriAI \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build | tee build/xcodebuild.log
+
+      - name: Package IPA
+        run: ./scripts/package-ipa.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SiriAI-unsigned-ipa
+          path: build/out/SiriAI-unsigned.ipa
+          if-no-files-found: error
+
+      - name: Attach IPA to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/out/SiriAI-unsigned.ipa
