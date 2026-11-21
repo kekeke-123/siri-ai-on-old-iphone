@@ -15,7 +15,9 @@ git clone --depth 1 --branch "$TAG" "$REPO" "$DIR"
 
 echo "== applying kernel patches =="
 cd "$DIR"
-for p in "$ROOT"/patches/*.patch; do
+# only the upstream-side series; 0004+ are repo-side patches applied by the
+# apply-kernel-patch workflow, never to the runtime tree
+for p in "$ROOT"/patches/000[123]-*.patch; do
     echo "  $(basename "$p")"
     git apply --whitespace=nowarn "$p"
 done
