@@ -19,6 +19,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Toolchain
         run: |
@@ -94,12 +96,17 @@ jobs:
         run: |
           {
             echo "# build failure";
+            echo "run: ${{ github.run_id }} @ ${{ github.sha }}";
             echo; echo '```';
-            tail -n 120 build/ci.log 2>/dev/null || echo 'no log';
+            tail -n 250 build/ci.log 2>/dev/null || echo 'no log';
             echo '```';
-          } > CI_LOG.md
-          git config user.name 'spk-ci'
-          git config user.email 'spk-ci@users.noreply.github.com'
-          git add -f CI_LOG.md
-          git commit -m 'ci: failure log' || true
-          git push origin HEAD:main || true
+          } > /tmp/fail.md
+          for i in 1 2 3; do
+            git fetch --depth 10 origin main
+            git reset --hard origin/main
+            cp /tmp/fail.md CI_LOG.md
+            git add -f CI_LOG.md
+            git -c user.name='spk-ci' -c user.email='spk-ci@users.noreply.github.com' commit -m "ci: failure log ${{ github.run_id }}"
+            if git push origin HEAD:main; then break; fi
+            sleep 5
+          done
