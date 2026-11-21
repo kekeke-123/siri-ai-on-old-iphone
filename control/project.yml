@@ -1,0 +1,25 @@
+name: Control
+# A deliberately boring SwiftUI app. No kernel, no widget, no vendor xcconfig,
+# no custom linker flags. Used as a control group to find out which part of the
+# real app breaks third party resign tools.
+options:
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  Control:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ai.siriplus.control
+        PRODUCT_NAME: Control
+        TARGETED_DEVICE_FAMILY: 1
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGN_IDENTITY: ""
+        SWIFT_VERSION: "5.0"
+        INFOPLIST_KEY_CFBundleDisplayName: ControlApp
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES

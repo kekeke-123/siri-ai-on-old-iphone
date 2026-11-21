@@ -1,0 +1,66 @@
+name: control
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'control/**'
+      - '.github/workflows/control.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  ipa:
+    name: control ipa
+    runs-on: macos-15-intel
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: |
+          cd control
+          xcodegen generate
+
+      - name: Build
+        run: |
+          xcodebuild \
+            -project control/Control.xcodeproj \
+            -scheme Control \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/ControlData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package
+        run: |
+          mkdir -p build/control-out/Payload
+          cp -R build/ControlData/Build/Products/Release-iphoneos/Control.app build/control-out/Payload/
+          cd build/control-out
+          zip -qry Control-unsigned.ipa Payload
+          ls -lh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Control-unsigned-ipa
+          path: build/control-out/Control-unsigned.ipa
+          if-no-files-found: error
+
+      - name: Publish
+        if: success()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest-control
+          name: Control unsigned ipa
+          body: Plain SwiftUI control build, no kernel, no widget.
+          prerelease: true
+          files: build/control-out/Control-unsigned.ipa
