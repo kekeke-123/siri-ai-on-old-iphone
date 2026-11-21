@@ -21,5 +21,6 @@ targets:
         CODE_SIGNING_REQUIRED: NO
         CODE_SIGN_IDENTITY: ""
         SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: ControlApp
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
