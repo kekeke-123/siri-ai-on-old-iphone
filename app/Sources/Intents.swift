@@ -77,8 +77,8 @@ struct TranslateWithSiriAIIntent: AppIntent {
 struct SiriAIShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(intent: AskSiriAIIntent(),
-                    phrases: ["问\(.applicationName) \(\\.$request)",
-                              "Ask \(.applicationName) \(\\.$request)"],
+                    phrases: ["问\(.applicationName) \(\.$request)",
+                              "Ask \(.applicationName) \(\.$request)"],
                     shortTitle: "问 Siri AI",
                     systemImageName: "sparkles")
         AppShortcut(intent: OpenSiriAIIntent(),
@@ -87,7 +87,7 @@ struct SiriAIShortcuts: AppShortcutsProvider {
                     shortTitle: "打开 Siri AI",
                     systemImageName: "waveform")
         AppShortcut(intent: TranslateWithSiriAIIntent(),
-                    phrases: ["用\(.applicationName)翻译\(\\.$text)"],
+                    phrases: ["用\(.applicationName)翻译\(\.$text)"],
                     shortTitle: "Siri AI 翻译",
                     systemImageName: "character.book.closed")
     }
