@@ -15,8 +15,15 @@ env:
 
 jobs:
   ipa:
+    # Two flavors, because all three bundled models would push a single .ipa past
+    # the 2 GB per-asset limit on GitHub Releases.
+    name: ipa (${{ matrix.flavor }})
     runs-on: macos-15-intel
-    timeout-minutes: 120
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        flavor: [ full, compat ]
 
     steps:
       - uses: actions/checkout@v4
@@ -33,6 +40,13 @@ jobs:
         run: |
           set -o pipefail
           bash ./scripts/fetch-runtime.sh 2>&1 | tee -a "$CI_LOG"
+
+      - name: Fetch bundled weights (${{ matrix.flavor }})
+        env:
+          SPK_MODEL_SET: ${{ matrix.flavor }}
+        run: |
+          set -o pipefail
+          bash ./scripts/fetch-model.sh 2>&1 | tee -a "$CI_LOG"
 
       - name: Kernel syntax gate
         run: |
@@ -80,26 +94,31 @@ jobs:
           set -o pipefail
           bash ./scripts/package-ipa.sh 2>&1 | tee -a "$CI_LOG"
 
+      - name: Name the artifact per flavor
+        run: |
+          mv build/out/SiriAI-unsigned.ipa "build/out/SiriAI-unsigned-${{ matrix.flavor }}.ipa"
+
       - uses: actions/upload-artifact@v4
         with:
-          name: SiriAI-unsigned-ipa
-          path: build/out/SiriAI-unsigned.ipa
+          name: SiriAI-unsigned-ipa-${{ matrix.flavor }}
+          path: build/out/SiriAI-unsigned-${{ matrix.flavor }}.ipa
           if-no-files-found: error
 
       - name: Publish unsigned IPA to rolling release
         if: success()
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest-build
-          name: SiriAI unsigned .ipa (rolling)
+          tag_name: ${{ matrix.flavor == 'full' && 'latest-build' || 'latest-build-lite' }}
+          name: SiriAI unsigned .ipa (${{ matrix.flavor }})
           body: |
             Automated unsigned build, no signing at all.
+            flavor: ${{ matrix.flavor }} (full = Qwen3.5-2B + 0.8B, compat = 0.8B + Qwen2.5-0.5B)
             run ${{ github.run_id }} @ ${{ github.sha }}
           prerelease: true
-          files: build/out/SiriAI-unsigned.ipa
+          files: build/out/SiriAI-unsigned-${{ matrix.flavor }}.ipa
 
       - name: Publish failure log
-        if: failure()
+        if: failure() && matrix.flavor == 'full'
         run: |
           {
             echo "# build failure";

@@ -14,6 +14,7 @@ struct SiriAIApp: App {
     var body: some Scene {
         WindowGroup {
             AssistantView()
+                .task { AssistantModel.shared.loadBuiltinIfAvailable() }
                 .onOpenURL { url in handle(url) }
                 .onChange(of: scenePhase) { phase in
                     if phase == .active {
