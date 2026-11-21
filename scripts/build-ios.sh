@@ -8,7 +8,7 @@ BUILD="$ROOT/build/kernel"
 cmake -S "$ROOT/kernel" -B "$BUILD" \
     -DCMAKE_SYSTEM_NAME=iOS \
     -DCMAKE_OSX_ARCHITECTURES=arm64 \
-    -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
     -DCMAKE_BUILD_TYPE=Release \
     -DRUNTIME_DIR="$ROOT/third_party/runtime" \
     -DGGML_METAL=ON \

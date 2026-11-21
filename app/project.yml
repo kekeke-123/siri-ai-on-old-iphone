@@ -3,7 +3,7 @@ options:
   bundleIdPrefix: ai.siriplus
   createIntermediateGroups: true
   deploymentTarget:
-    iOS: "15.0"
+    iOS: "16.0"
 
 configFiles:
   Debug: SPKVendor.xcconfig
@@ -19,13 +19,13 @@ settings:
     CODE_SIGNING_REQUIRED: NO
     CODE_SIGN_IDENTITY: ""
     ONLY_ACTIVE_ARCH: NO
-    IPHONEOS_DEPLOYMENT_TARGET: "15.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "16.0"
 
 targets:
   SiriAI:
     type: application
     platform: iOS
-    deploymentTarget: "15.0"
+    deploymentTarget: "16.0"
     sources:
       - path: Sources
       - path: Shared

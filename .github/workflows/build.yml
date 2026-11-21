@@ -32,7 +32,7 @@ jobs:
       - name: Fetch runtime and apply kernel patches
         run: |
           set -o pipefail
-          ./scripts/fetch-runtime.sh 2>&1 | tee -a "$CI_LOG"
+          bash ./scripts/fetch-runtime.sh 2>&1 | tee -a "$CI_LOG"
 
       - name: Kernel syntax gate
         run: |
@@ -47,12 +47,12 @@ jobs:
       - name: Build kernel for iOS arm64
         run: |
           set -o pipefail
-          ./scripts/build-ios.sh 2>&1 | tee -a "$CI_LOG"
+          bash ./scripts/build-ios.sh 2>&1 | tee -a "$CI_LOG"
 
       - name: Generate vendor xcconfig
         run: |
           set -o pipefail
-          ./scripts/gen-xcconfig.sh 2>&1 | tee -a "$CI_LOG"
+          bash ./scripts/gen-xcconfig.sh 2>&1 | tee -a "$CI_LOG"
 
       - name: Generate Xcode project
         run: |
@@ -78,7 +78,7 @@ jobs:
       - name: Package IPA
         run: |
           set -o pipefail
-          ./scripts/package-ipa.sh 2>&1 | tee -a "$CI_LOG"
+          bash ./scripts/package-ipa.sh 2>&1 | tee -a "$CI_LOG"
 
       - uses: actions/upload-artifact@v4
         with:
