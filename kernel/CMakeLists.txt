@@ -55,3 +55,11 @@ set_target_properties(spk PROPERTIES
     CXX_VISIBILITY_PRESET hidden
     VISIBILITY_INLINES_HIDDEN YES
 )
+
+# Headless smoke test, built only on request so the iOS archive stays clean.
+option(SPK_BUILD_SELFTEST "Build the spk_selftest CLI" OFF)
+if(SPK_BUILD_SELFTEST)
+    add_executable(spk_selftest tools/spk_selftest.cpp)
+    target_compile_features(spk_selftest PRIVATE cxx_std_17)
+    target_link_libraries(spk_selftest PRIVATE spk)
+endif()

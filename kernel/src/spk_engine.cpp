@@ -374,6 +374,26 @@ const char * spk_engine_last_error(const spk_engine * eng) {
     return eng->err.c_str();
 }
 
+const std::string & spk_engine_arch(spk_engine * eng) {
+    static const std::string none;
+    if (eng == nullptr || eng->text.model == nullptr) {
+        return none;
+    }
+    if (!eng->arch.empty()) {
+        return eng->arch;
+    }
+    char desc[128] = {0};
+    spk_model_desc(eng->text.model, desc, sizeof(desc));
+    // "<arch> <size> <quant> - <type>", so the first token is the arch name
+    std::string text(desc);
+    const size_t sp = text.find(' ');
+    eng->arch = (sp == std::string::npos) ? text : text.substr(0, sp);
+    if (eng->arch.empty()) {
+        eng->arch = "unknown";
+    }
+    return eng->arch;
+}
+
 spk_status spk_engine_info(const spk_engine * eng, spk_info * out) {
     if (eng == nullptr || out == nullptr || eng->text.model == nullptr) {
         return SPK_ERR_INVALID_ARGUMENT;

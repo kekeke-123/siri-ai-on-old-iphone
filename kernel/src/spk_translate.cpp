@@ -115,7 +115,8 @@ spk_status spk_translate(spk_engine * eng, const char * text,
     eng->cancel.store(false);
 
     const spk_vocab * vocab = spk_model_get_vocab(model);
-    spk_sampler * smpl = spk_make_sampler(params, spk_vocab_n_tokens(vocab));
+    spk_sampler * smpl = spk_make_sampler(params, spk_vocab_n_tokens(vocab),
+                                          spk_engine_arch(eng).c_str());
     if (smpl == nullptr) {
         return SPK_ERR_INTERNAL;
     }

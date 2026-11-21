@@ -38,6 +38,9 @@ struct spk_engine {
     std::string system_prompt;
     std::string asr_path;
     std::string err;
+    // arch as reported by the runtime ("qwen35", "qwen2", ...), parsed lazily
+    // from the model description; used for sampler defaults and diagnostics.
+    std::string arch;
 
     spk_slot text;
     spk_slot vision;
@@ -118,7 +121,11 @@ spk_status spk_vision_eval(spk_engine * eng, spk_session * ses,
                            spk_pos n_past, bool logits_last, spk_pos * new_n_past);
 
 // sampling
-spk_sampler * spk_make_sampler(const spk_gen_params * p, int32_t n_vocab);
+spk_sampler * spk_make_sampler(const spk_gen_params * p, int32_t n_vocab, const char * arch);
+
+// architecture of the resident text model ("qwen35", "qwen2", "llama", ...).
+// Empty string when no model is loaded. Cached after the first call.
+const std::string & spk_engine_arch(spk_engine * eng);
 
 // memory accounting
 double spk_rss_mb();

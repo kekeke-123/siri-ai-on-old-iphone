@@ -101,6 +101,31 @@ int32_t spk_tokenize_text(spk_engine * eng, const std::string & text,
 
 // ------------------------------------------------------- template
 
+// The runtime's template matcher only knows a fixed set of shapes. Qwen 3.x /
+// 3.5 ship a longer jinja template (tools, thinking switches) that it can
+// still recognise as chatml from the <|im_start|> markers, but exotic or
+// future templates can fail outright. A voice assistant must never hard fail
+// on a template detail, so ChatML is applied by hand as the last resort.
+namespace {
+
+std::string spk_chatml_manual(const std::vector<spk_msg> & msgs, bool add_ass) {
+    std::string out;
+    out.reserve(256);
+    for (const auto & m : msgs) {
+        out += "<|im_start|>";
+        out += m.role;
+        out += "\n";
+        out += m.text;
+        out += "<|im_end|>\n";
+    }
+    if (add_ass) {
+        out += "<|im_start|>assistant\n";
+    }
+    return out;
+}
+
+} // namespace
+
 std::string spk_apply_template(spk_engine * eng, const std::vector<spk_msg> & msgs, bool add_ass) {
     if (eng == nullptr || eng->text.model == nullptr || msgs.empty()) {
         return std::string();
@@ -129,16 +154,17 @@ std::string spk_apply_template(spk_engine * eng, const std::vector<spk_msg> & ms
     int32_t n = spk_chat_apply_template(tmpl, chat.data(), chat.size(), add_ass,
                                         buf.data(), (int32_t) buf.size());
     if (n < 0) {
-        spk_set_error(eng, "chat template rejected the conversation (%d)", n);
-        return std::string();
+        // keep the diagnostic, but never drop the turn on the floor
+        spk_set_error(eng, "chat template fallback to chatml (%d)", n);
+        return spk_chatml_manual(msgs, add_ass);
     }
     if ((size_t) n > buf.size()) {
         buf.resize((size_t) n);
         n = spk_chat_apply_template(tmpl, chat.data(), chat.size(), add_ass,
                                     buf.data(), (int32_t) buf.size());
         if (n < 0 || (size_t) n > buf.size()) {
-            spk_set_error(eng, "chat template output does not fit");
-            return std::string();
+            spk_set_error(eng, "chat template output does not fit, using chatml");
+            return spk_chatml_manual(msgs, add_ass);
         }
     }
     return std::string(buf.data(), (size_t) n);
@@ -298,7 +324,7 @@ static spk_sampler * spk_session_sampler(spk_session * ses,
         spk_sampler_free(ses->smpl);
         ses->smpl = nullptr;
     }
-    ses->smpl = spk_make_sampler(params, n_vocab);
+    ses->smpl = spk_make_sampler(params, n_vocab, spk_engine_arch(ses->eng).c_str());
     if (ses->smpl != nullptr) {
         ses->smpl_cfg   = p;
         ses->smpl_vocab = n_vocab;
