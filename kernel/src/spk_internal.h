@@ -87,7 +87,14 @@ spk_slot * spk_slot_for(spk_engine * eng, spk_model_role role);
 spk_status spk_slot_load(spk_engine * eng, spk_slot & slot);
 void       spk_slot_unload(spk_slot & slot);
 
-void spk_emit(spk_token_cb cb, void * ud, const char * piece, bool is_final);
+// Single token-fanout point shared by generation, translation and vision.
+// Drop-in safe for a null callback, which is how the non-streaming callers
+// ask for "just collect the text".
+inline void spk_emit(spk_token_cb cb, void * ud, const char * piece, bool is_final) {
+    if (cb != nullptr) {
+        cb(piece, is_final, ud);
+    }
+}
 
 std::string spk_apply_template(spk_engine * eng, const std::vector<spk_msg> & msgs, bool add_ass);
 
