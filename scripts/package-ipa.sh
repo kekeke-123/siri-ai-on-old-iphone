@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # Package the built .app into a sideload friendly IPA.
 #
-# Why we sign at all: the app is built with CODE_SIGNING_ALLOWED=NO, so the main
-# Mach-O has no LC_CODE_SIGNATURE. Resign tools then try to grow the binary to
-# make room and give up with "CodeDirectory 与 Mach-O 不一致", producing an IPA
-# that installs as an empty icon. An ad hoc pass on the runner is free and leaves
-# a valid CodeDirectory the tools can replace with the user's certificate.
+# Default output is raw and unsigned: no embedded signature, no _CodeSignature.
+# Phone side resign tools expect exactly that (they strip whatever they find and
+# then build their own CodeDirectory + CMS). Set SPK_ADHOC=1 to embed an ad hoc
+# signature instead, which some desktop tools prefer.
 #
-# Metadata.appintents is dropped: the training processor already failed to parse
-# it on the runner, and codesign refuses to touch any bundle that contains it
-# (it is recognised as a malformed nested bundle).
+# The build already links with -no_fixup_chains, so the main Mach-O carries the
+# classic LC_DYLD_INFO_ONLY rebase/bind tables that older resign engines can
+# actually parse. Chained fixups made them compute wrong offsets and abort with
+# "CodeDirectory 与 Mach-O 不一致".
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -29,33 +29,21 @@ APP="$OUT/Payload/SiriAI.app"
 find "$APP" -name '*.dSYM' -exec rm -rf {} + 2>/dev/null || true
 rm -rf "$APP/Metadata.appintents"
 
+echo "== load commands of main executable =="
 EXE="$APP/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Info.plist")"
+otool -l "$EXE" 2>/dev/null | grep -E 'LC_DYLD_INFO_ONLY|LC_DYLD_CHAINED_FIXUPS|LC_CODE_SIGNATURE' | sed 's/^/   /' || true
 
-# nested code first: widget extension, then any embedded dylibs
-while IFS= read -r nested; do
-    [ -e "$nested" ] || continue
-    echo "== ad hoc seal ${nested#$APP/}"
-    codesign --force --sign - --timestamp=none "$nested"
-done < <(find "$APP" -maxdepth 4 \( -name '*.appex' -o -name '*.dylib' \) -print | sort -r)
-
-echo "== ad hoc seal SiriAI.app"
-if ! codesign --force --sign - --timestamp=none "$APP"; then
-    # codesign still resolves the surrounding bundle even for a single file, so
-    # sign the executable outside the bundle and copy it back
-    echo "== fallback: sign executable out of tree"
-    TMP="$(mktemp -d)"
-    cp "$EXE" "$TMP/SiriAI"
-    codesign --force --sign - --timestamp=none "$TMP/SiriAI"
-    cp "$TMP/SiriAI" "$EXE"
-    rm -rf "$TMP"
-fi
-
-codesign -dv "$EXE" 2>&1 | sed -n '1,4p' || true
-
-if [ -f "$APP/_CodeSignature/CodeResources" ]; then
-    echo "== bundle seal present"
+if [ "${SPK_ADHOC:-0}" = "1" ]; then
+    echo "== ad hoc signing (SPK_ADHOC=1)"
+    while IFS= read -r nested; do
+        [ -e "$nested" ] || continue
+        codesign --force --sign - --timestamp=none "$nested"
+    done < <(find "$APP" -maxdepth 4 \( -name '*.appex' -o -name '*.dylib' \) -print | sort -r)
+    codesign --force --sign - --timestamp=none "$APP"
 else
-    echo "== warning: no bundle seal, executable signature only"
+    echo "== raw unsigned package (no ad hoc signature)"
+    rm -rf "$APP/_CodeSignature"
+    find "$APP" -name '_CodeSignature' -type d -exec rm -rf {} + 2>/dev/null || true
 fi
 
 echo "== package"
