@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# Package the built .app into an IPA that third-party signers can re-sign.
+# Package the built .app into a sideload friendly IPA.
 #
-# The bundle is built with CODE_SIGNING_ALLOWED=NO, so the main binary has no
-# LC_CODE_SIGNATURE slot at all. Re-signing tools read that as "CodeDirectory
-# does not match Mach-O", try to grow the slot, and give up halfway leaving an
-# uninstallable package. An ad-hoc signature closes that hole: it writes a real
-# CodeDirectory plus CodeResources, which any signer can then replace wholesale.
+# We ad hoc sign on the runner before zipping. Resign tools (Sideloadly, AltStore
+# and the phone side resigners) cannot work on a Mach-O that carries no
+# LC_CODE_SIGNATURE at all: they try to grow the binary to make room for one and
+# then abort with "CodeDirectory 与 Mach-O 不一致", leaving an incomplete IPA that
+# installs and crashes. An ad hoc pass takes a couple of seconds and leaves a real
+# code slot plus a CodeResources seal, which those tools can then replace cleanly
+# with the user's own certificate.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -21,34 +23,29 @@ rm -rf "$OUT"
 mkdir -p "$OUT/Payload"
 cp -R "$APP" "$OUT/Payload/"
 
-APP_PATH="$OUT/Payload/$(basename "$APP")"
+# strip debug symbols, they only bloat the download
+find "$OUT/Payload/SiriAI.app" -name '*.dSYM' -exec rm -rf {} + 2>/dev/null || true
 
-find "$APP_PATH" -name '*.dSYM' -exec rm -rf {} + 2>/dev/null || true
+# nested code first, the outer bundle seals it afterwards
+find "$OUT/Payload/SiriAI.app" -maxdepth 4 \
+    \( -name '*.appex' -o -name '*.dylib' -o -name '*.framework' \) \
+    -print | sort -r > "$OUT/.nested"
+while IFS= read -r nested; do
+    [ -e "$nested" ] || continue
+    echo "== ad hoc sign ${nested#$OUT/Payload/}"
+    codesign --force --sign - --timestamp=none "$nested"
+ done < "$OUT/.nested"
+rm -f "$OUT/.nested"
 
-# nested code first, then the container
-if [ -d "$APP_PATH/PlugIns/SiriAIWidget.appex" ]; then
-    echo "== ad-hoc sign widget extension =="
-    codesign --force --sign - --timestamp=none \
-        "$APP_PATH/PlugIns/SiriAIWidget.appex"
+echo "== ad hoc sign SiriAI.app"
+codesign --force --sign - --timestamp=none "$OUT/Payload/SiriAI.app"
+codesign -dv "$OUT/Payload/SiriAI.app" 2>&1 | sed -n '1,5p'
+
+# a real seal means the resign tools have something to replace
+if [ ! -f "$OUT/Payload/SiriAI.app/_CodeSignature/CodeResources" ]; then
+    echo "CodeResources missing after signing" >&2
+    exit 1
 fi
-
-for fw in "$APP_PATH"/Frameworks/*; do
-    [ -e "$fw" ] || continue
-    echo "== ad-hoc sign $(basename "$fw") =="
-    codesign --force --sign - --timestamp=none "$fw"
-done
-
-echo "== ad-hoc sign app =="
-codesign --force --sign - --timestamp=none "$APP_PATH"
-
-# verify, but do not fail the build on it: some resource-heavy bundles trip
-# --strict on file mode bits that no signer actually cares about
-if ! codesign --verify --deep --strict "$APP_PATH" 2>&1; then
-    echo "warning: ad-hoc signature verification reported problems" >&2
-fi
-
-echo "== embedded signature slot =="
-/usr/bin/codesign -d --verbose=2 "$APP_PATH/SiriAI" 2>&1 | head -5 || true
 
 ( cd "$OUT" && zip -qry "SiriAI-unsigned.ipa" "Payload" )
 echo "== $OUT/SiriAI-unsigned.ipa =="
