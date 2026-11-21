@@ -1,0 +1,24 @@
+# build artefacts
+build/
+DerivedData/
+*.ipa
+*.xcarchive
+
+# fetched runtime (never committed, see third_party/NOTICE.md)
+third_party/runtime/
+
+# generated Xcode project
+app/SiriAI.xcodeproj/
+
+# xcode noise
+*.xcuserstate
+xcuserdata/
+*.moved-aside
+*.hmap
+*.dSYM
+
+# macOS
+.DS_Store
+
+# local models
+*.gguf
