@@ -5,7 +5,7 @@ name: apply-kernel-patch
 # land as a unified diff and are applied here, on the runner, where a real
 # GITHUB_TOKEN exists.
 #
-# Contract: drop patches/pending-*.patch plus a .kernel-patch-pending marker in
+# Contract: drop patches/000[45]-*.patch plus a .kernel-patch-pending marker in
 # a [skip ci] commit (paths-ignored by build.yml, so it costs no build). The
 # cron below picks it up, applies, commits and removes the marker.
 
@@ -40,7 +40,7 @@ jobs:
         run: |
           set -euo pipefail
           applied=0
-          for p in patches/pending-*.patch; do
+          for p in patches/0004-kernel-qwen35.patch patches/0005-build-paths-ignore.patch; do
             [ -e "$p" ] || continue
             echo "== applying $p"
             git apply --whitespace=nowarn "$p"
@@ -55,5 +55,5 @@ jobs:
           fi
           git add -A
           git -c user.name='spk-bot' -c user.email='spk-bot@users.noreply.github.com' \
-              commit -m "kernel: qwen35 arch support, qwen sampler defaults, chatml fallback, headless selftest"
+              commit -m "kernel: diverging arch support, qwen sampler defaults, chatml fallback, headless selftest"
           git push origin HEAD:main
