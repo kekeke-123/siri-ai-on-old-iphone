@@ -1,0 +1,67 @@
+name: SiriAI
+options:
+  bundleIdPrefix: ai.siriplus
+  createIntermediateGroups: true
+  deploymentTarget:
+    iOS: "15.0"
+
+configFiles:
+  Debug: SPKVendor.xcconfig
+  Release: SPKVendor.xcconfig
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    CLANG_CXX_LANGUAGE_STANDARD: c++17
+    CLANG_ENABLE_MODULES: YES
+    ENABLE_BITCODE: NO
+    CODE_SIGNING_ALLOWED: NO
+    CODE_SIGNING_REQUIRED: NO
+    CODE_SIGN_IDENTITY: ""
+    ONLY_ACTIVE_ARCH: NO
+
+targets:
+  SiriAI:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: Sources
+      - path: Shared
+      - path: ../kernel/src
+      - path: ../kernel/ios
+    settings:
+      base:
+        INFOPLIST_FILE: Sources/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: ai.siriplus.app
+        PRODUCT_NAME: SiriAI
+        SWIFT_OBJC_BRIDGING_HEADER: Sources/Bridging-Header.h
+        TARGETED_DEVICE_FAMILY: 1
+    dependencies:
+      - target: SiriAIWidget
+        embed: true
+        codeSign: false
+
+  SiriAIWidget:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "16.1"
+    sources:
+      - path: Widget
+      - path: Shared
+    settings:
+      base:
+        INFOPLIST_FILE: Widget/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: ai.siriplus.app.widget
+        PRODUCT_NAME: SiriAIWidget
+        TARGETED_DEVICE_FAMILY: 1
+
+schemes:
+  SiriAI:
+    build:
+      targets:
+        SiriAI: all
+    run:
+      config: Debug
+    archive:
+      config: Release

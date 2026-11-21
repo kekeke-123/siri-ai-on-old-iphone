@@ -1,0 +1,73 @@
+diff --git a/ggml/src/gguf.cpp b/ggml/src/gguf.cpp
+index c80b682..206080d 100644
+--- a/ggml/src/gguf.cpp
++++ b/ggml/src/gguf.cpp
+@@ -91,6 +91,12 @@ struct type_to_gguf_type<double> {
+     static constexpr enum gguf_type value = GGUF_TYPE_FLOAT64;
+ };
+ 
++// SPK-GUARD: hard caps for untrusted model files. A malformed GGUF with a huge
++// tensor/KV count used to turn into an unbounded parse loop and multi-GB allocation
++// before the first sanity check ever ran.
++static constexpr int64_t  GGUF_MAX_TENSORS_SPK = 8192;
++static constexpr int64_t  GGUF_MAX_KV_SPK      = 8192;
++
+ static const std::map<gguf_type, size_t> GGUF_TYPE_SIZE = {
+     {GGUF_TYPE_UINT8,   sizeof(uint8_t)},
+     {GGUF_TYPE_INT8,    sizeof(int8_t)},
+@@ -373,6 +379,11 @@ struct gguf_reader {
+         return start_offset;
+     }
+ 
++    // SPK-GUARD: bytes left in the backing stream from the current cursor
++    uint64_t remaining() const {
++        return nbytes_remain;
++    }
++
+     bool seek(uint64_t absolute_offset) const {
+         const uint64_t end_offset = uint64_t(data_offset) + nbytes_remain;
+         if (absolute_offset > end_offset) {
+@@ -528,6 +539,12 @@ static struct gguf_context * gguf_init_from_reader(const struct gguf_reader & gr
+                 __func__, n_tensors, SIZE_MAX/sizeof(gguf_tensor_info));
+             ok = false;
+         }
++        // SPK-GUARD: reject absurd tensor counts before allocating the info vector
++        if (ok && n_tensors > GGUF_MAX_TENSORS_SPK) {
++            GGML_LOG_ERROR("%s: number of tensors %" PRIi64 " exceeds SPK limit %" PRIi64 "\n",
++                __func__, n_tensors, GGUF_MAX_TENSORS_SPK);
++            ok = false;
++        }
+     } else {
+         ok = false;
+     }
+@@ -539,6 +556,12 @@ static struct gguf_context * gguf_init_from_reader(const struct gguf_reader & gr
+                     __func__, n_kv, SIZE_MAX/sizeof(gguf_kv));
+             ok = false;
+         }
++        // SPK-GUARD: same for KV pairs
++        if (ok && n_kv > GGUF_MAX_KV_SPK) {
++            GGML_LOG_ERROR("%s: number of key value pairs %" PRIi64 " exceeds SPK limit %" PRIi64 "\n",
++                    __func__, n_kv, GGUF_MAX_KV_SPK);
++            ok = false;
++        }
+     } else {
+         ok = false;
+     }
+@@ -817,6 +840,17 @@ static struct gguf_context * gguf_init_from_reader(const struct gguf_reader & gr
+             }
+             ctx->size += padded_size;
+         }
++
++        // SPK-GUARD: the tensor data blob must physically fit in the file.
++        // Tensor offsets are validated to be sequential above, but nothing checked
++        // that the last tensor actually ends inside the backing stream - a truncated
++        // or maliciously short file produced out-of-bounds reads later in the loader.
++        if (ctx->size > gr.remaining()) {
++            GGML_LOG_ERROR("%s: tensor data section needs %zu bytes but only %" PRIu64 " bytes remain in the file\n",
++                __func__, ctx->size, gr.remaining());
++            gguf_free(ctx);
++            return nullptr;
++        }
+     }
+ 
+     // load the tensor data only if requested

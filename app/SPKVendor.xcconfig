@@ -1,0 +1,15 @@
+// Base xcconfig for the app target. CI overwrites this file with the real
+// library list after building the kernel (see scripts/gen-xcconfig.sh).
+//
+// Keeping it committed means `xcodegen` works out of the box for people who
+// just want to read the project; building still needs the kernel artefacts.
+
+HEADER_SEARCH_PATHS = $(inherited) \
+    "$(SRCROOT)/../kernel/include" \
+    "$(SRCROOT)/../kernel/include/spk" \
+    "$(SRCROOT)/../kernel/ios"
+
+OTHER_LDFLAGS = $(inherited) -lc++ -lz \
+    -framework Metal -framework MetalKit -framework Accelerate \
+    -framework AVFoundation -framework Speech -framework ActivityKit \
+    -framework WidgetKit -framework AppIntents

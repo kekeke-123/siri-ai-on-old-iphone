@@ -1,0 +1,32 @@
+diff --git a/ggml/src/ggml-cpu/ggml-cpu.c b/ggml/src/ggml-cpu/ggml-cpu.c
+index a76af84..e5ef375 100644
+--- a/ggml/src/ggml-cpu/ggml-cpu.c
++++ b/ggml/src/ggml-cpu/ggml-cpu.c
+@@ -3248,10 +3248,27 @@ static inline bool ggml_graph_compute_check_for_work(struct ggml_compute_state *
+     return state->pending;
+ }
+ 
++#if defined(__APPLE__)
++// SPK: inference must not be demoted to a background QoS class. iOS lowers the
++// QoS of threads spawned while the app is not foreground, which caps them at the
++// efficiency cores and roughly doubles token latency on A-series chips.
++#include <pthread/qos.h>
++static bool spk_qos_enabled(void) {
++    const char * v = getenv("SPK_DISABLE_QOS");
++    return v == nullptr || v[0] == '0';
++}
++#endif
++
+ static thread_ret_t ggml_graph_compute_secondary_thread(void* data) {
+     struct ggml_compute_state * state = (struct ggml_compute_state *) data;
+     struct ggml_threadpool * threadpool = state->threadpool;
+ 
++#if defined(__APPLE__)
++    if (spk_qos_enabled()) {
++        pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
++    }
++#endif
++
+     ggml_thread_apply_priority(threadpool->prio);
+     if (ggml_thread_cpumask_is_valid(state->cpumask)) {
+         ggml_thread_apply_affinity(state->cpumask);

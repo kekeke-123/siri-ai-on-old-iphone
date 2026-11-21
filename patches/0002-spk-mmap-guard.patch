@@ -1,0 +1,45 @@
+diff --git a/src/llama-mmap.cpp b/src/llama-mmap.cpp
+index 9688a7e..b3d6d44 100644
+--- a/src/llama-mmap.cpp
++++ b/src/llama-mmap.cpp
+@@ -713,6 +713,24 @@ struct llama_mmap::impl {
+         size = file->size();
+         int fd = file->file_id();
+         int flags = MAP_SHARED;
++
++        // SPK-GUARD: only map a regular file whose size did not change between the
++        // caller's stat and mmap(). Model files on iOS are user-supplied (Files app,
++        // iCloud Drive), so a symlinked or swapped-in file used to be mapped read-only
++        // and interpreted as weights.
++        {
++            struct stat st;
++            if (fstat(fd, &st) != 0) {
++                throw std::runtime_error(format("mmap: fstat failed: %s", strerror(errno)));
++            }
++            if (!S_ISREG(st.st_mode)) {
++                throw std::runtime_error("mmap: refusing to map a non-regular file");
++            }
++            if ((uint64_t) st.st_size != (uint64_t) size) {
++                throw std::runtime_error(format("mmap: file size changed during load (%" PRIu64 " != %zu)",
++                        (uint64_t) st.st_size, size));
++            }
++        }
+         if (numa) { prefetch = 0; }
+ #ifdef __linux__
+         if (posix_fadvise(fd, 0, 0, POSIX_FADV_SEQUENTIAL)) {
+@@ -807,6 +825,15 @@ struct llama_mmap::impl {
+     }
+ 
+     ~impl() {
++        // SPK: ask the kernel to drop the clean page cache for the weights before
++        // unmapping. On iOS this is the difference between the app keeping a 1.5 GB
++        // resident footprint (and getting jetsam-killed) and giving the pages back
++        // to the system immediately.
++        for (const auto & frag : mapped_fragments) {
++            if (frag.second > frag.first) {
++                posix_madvise((char *) addr + frag.first, frag.second - frag.first, POSIX_MADV_DONTNEED);
++            }
++        }
+         for (const auto & frag : mapped_fragments) {
+             if (munmap((char *) addr + frag.first, frag.second - frag.first)) {
+                 LLAMA_LOG_WARN("warning: munmap failed: %s\n", strerror(errno));
