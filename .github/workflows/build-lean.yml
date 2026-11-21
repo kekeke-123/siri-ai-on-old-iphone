@@ -1,0 +1,127 @@
+name: build-lean
+# Lean build: the app with no bundled weights, for install checks and for
+# devices where downloading a 1 GB IPA is impractical. Models can be imported
+# later from the Files app; the kernel stays identical.
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'app/**'
+      - 'kernel/**'
+      - 'scripts/**'
+      - '.github/workflows/build-lean.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CI_LOG: ${{ github.workspace }}/build/ci.log
+
+jobs:
+  ipa:
+    name: ipa (lean)
+    runs-on: macos-15-intel
+    timeout-minutes: 180
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Toolchain
+        run: |
+          set -o pipefail
+          mkdir -p build
+          { xcodebuild -version; brew install xcodegen; } 2>&1 | tee -a "$CI_LOG"
+
+      - name: Fetch runtime and apply kernel patches
+        run: |
+          set -o pipefail
+          bash ./scripts/fetch-runtime.sh 2>&1 | tee -a "$CI_LOG"
+
+      - name: Kernel syntax gate
+        run: |
+          set -o pipefail
+          clang++ -std=c++17 -fsyntax-only \
+            -I kernel/include -I kernel/include/spk -I kernel/src \
+            -I third_party/runtime/include \
+            -I third_party/runtime/ggml/include \
+            -I third_party/runtime/tools/mtmd \
+            kernel/src/*.cpp 2>&1 | tee -a "$CI_LOG"
+
+      - name: Build kernel for iOS arm64
+        run: |
+          set -o pipefail
+          bash ./scripts/build-ios.sh 2>&1 | tee -a "$CI_LOG"
+
+      - name: Generate vendor xcconfig
+        run: |
+          set -o pipefail
+          bash ./scripts/gen-xcconfig.sh 2>&1 | tee -a "$CI_LOG"
+
+      - name: Generate Xcode project
+        run: |
+          set -o pipefail
+          cd app
+          xcodegen generate 2>&1 | tee -a "$CI_LOG"
+
+      - name: Build app (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project app/SiriAI.xcodeproj \
+            -scheme SiriAI \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee -a "$CI_LOG"
+
+      - name: Package IPA
+        run: |
+          set -o pipefail
+          bash ./scripts/package-ipa.sh 2>&1 | tee -a "$CI_LOG"
+
+      - name: Name the artifact per flavor
+        run: |
+          mv build/out/SiriAI-unsigned.ipa build/out/SiriAI-unsigned-lean.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SiriAI-unsigned-ipa-lean
+          path: build/out/SiriAI-unsigned-lean.ipa
+          if-no-files-found: error
+
+      - name: Publish unsigned IPA to rolling release
+        if: success()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest-build-lean
+          name: SiriAI unsigned .ipa (lean, no bundled weights)
+          body: |
+            Lean unsigned build: app only, no GGUF inside. Import models from the Files app.
+            run ${{ github.run_id }} @ ${{ github.sha }}
+          prerelease: true
+          files: build/out/SiriAI-unsigned-lean.ipa
+
+      - name: Publish failure log
+        if: failure()
+        run: |
+          {
+            echo "# build-lean failure";
+            echo "run: ${{ github.run_id }} @ ${{ github.sha }}";
+            echo; echo '```';
+            tail -n 400 build/ci.log 2>/dev/null || echo 'no log';
+            echo '```';
+          } > /tmp/fail-lean.md
+          git fetch --depth 10 origin main
+          git reset --hard origin/main
+          cp /tmp/fail-lean.md CI_LOG.md
+          git add -f CI_LOG.md
+          git -c user.name='spk-ci' -c user.email='spk-ci@users.noreply.github.com' commit -m "ci: lean failure log ${{ github.run_id }}"
+          git push origin HEAD:main || true
