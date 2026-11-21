@@ -89,8 +89,6 @@ final class AssistantModel: ObservableObject {
 
     // MARK: bundled tiers
 
-    /// Entry point on launch: honour the persisted mode, otherwise pick the
-    /// device default (iPhone 11 / SE2 and older get the 0.5B model).
     func loadBuiltinIfAvailable() {
         guard !ready, !builtinAttempted else { return }
         builtinAttempted = true
@@ -117,7 +115,7 @@ final class AssistantModel: ObservableObject {
             statusLine = RemoteBackend.shared.isConfigured ? "API 模式（本地停用）" : "API 模式，先去下面填地址"
             return
         }
-        if newMode == .custom { return }   // custom waits for an import
+        if newMode == .custom { return }
 
         guard let tier = newMode.tier ?? ModelRouter.resolve(DeviceProfile.defaultTier),
               let url = ModelTier.bundledURL(tier) else {
@@ -158,7 +156,6 @@ final class AssistantModel: ObservableObject {
         let prompt = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !prompt.isEmpty else { return }
 
-        // local first, API only when explicitly selected or nothing local is up
         if mode == .api || (!ready && RemoteBackend.shared.isConfigured) {
             appendUser(prompt, imagePath: imagePath)
             askRemote(prompt)
@@ -170,7 +167,6 @@ final class AssistantModel: ObservableObject {
             return
         }
 
-        // auto mode: pick a tier from the prompt, swap the model if it differs
         if mode == .auto {
             let preferred = ModelRouter.preferredTier(for: prompt)
             if let tier = ModelRouter.resolve(preferred),
@@ -258,9 +254,9 @@ final class AssistantModel: ObservableObject {
                 guard let self = self else { return }
                 self.flushPiece()
                 self.thinking = false
-                let text = answer ?? self.streaming
+                let text: String = answer ?? self.streaming
                 self.streaming = ""
-                if let text = text, !text.isEmpty {
+                if !text.isEmpty {
                     self.messages.append(ChatMessage(role: .assistant, text: text))
                     if self.autoSpeak { self.speak(text) }
                 } else if let error = error {
