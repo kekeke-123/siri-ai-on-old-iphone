@@ -62,5 +62,25 @@
             </array>
         </dict>
     </array>
+    <key>UTImportedTypeDeclarations</key>
+    <array>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>ai.siriplus.gguf</string>
+            <key>UTTypeDescription</key>
+            <string>GGUF model weights</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.data</string>
+            </array>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>gguf</string>
+                </array>
+            </dict>
+        </dict>
+    </array>
 </dict>
 </plist>

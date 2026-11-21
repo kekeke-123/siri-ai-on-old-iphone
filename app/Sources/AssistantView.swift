@@ -13,7 +13,7 @@ struct AssistantView: View {
     @State private var showError = false
 
     private var gguf: UTType {
-        UTType(filenameExtension: "gguf") ?? .data
+        UTType.data // .gguf has no registered UTI; a dynamic one leaves the file untappable
     }
 
     var body: some View {

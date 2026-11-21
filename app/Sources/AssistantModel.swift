@@ -47,29 +47,46 @@ final class AssistantModel: ObservableObject {
     // MARK: models
 
     func importModel(_ url: URL, mmproj: URL?) {
-        do {
-            let local = try ModelStore.importFile(url)
-            var mm: URL?
-            if let mmproj = mmproj {
-                mm = try ModelStore.importFile(mmproj)
+        statusLine = "正在导入模型…"
+        errorText = nil
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                let local = try ModelStore.importFile(url)
+                var mm: URL?
+                if let mmproj = mmproj {
+                    mm = try ModelStore.importFile(mmproj)
+                }
+                DispatchQueue.main.async {
+                    self.statusLine = "正在加载 \(local.lastPathComponent)…"
+                }
+                if let err = self.bridge.loadModel(atPath: local.path, mmprojPath: mm?.path) {
+                    DispatchQueue.main.async {
+                        self.errorText = err
+                        self.statusLine = "加载失败"
+                    }
+                    return
+                }
+                let info = self.bridge.info()
+                let desc = (info["desc"] as? String) ?? local.lastPathComponent
+                let threads = self.threadCount(info)
+                let ctx = self.context(info)
+                let vision = self.bridge.visionReady
+                DispatchQueue.main.async {
+                    self.ready = true
+                    self.activeTier = nil
+                    self.mode = .custom
+                    UserDefaults.standard.set(ModelMode.custom.rawValue, forKey: "spk.model.mode")
+                    self.visionReady = vision
+                    self.errorText = nil
+                    self.modelLabel = desc
+                    self.statusLine = "就绪 · \(threads) 线程 · \(ctx) ctx"
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.errorText = error.localizedDescription
+                    self.statusLine = "导入失败"
+                }
             }
-            if let err = bridge.loadModel(atPath: local.path, mmprojPath: mm?.path) {
-                errorText = err
-                statusLine = "加载失败"
-                return
-            }
-            ready = true
-            activeTier = nil
-            mode = .custom
-            UserDefaults.standard.set(ModelMode.custom.rawValue, forKey: "spk.model.mode")
-            visionReady = bridge.visionReady
-            errorText = nil
-            let info = bridge.info()
-            let desc = (info["desc"] as? String) ?? local.lastPathComponent
-            modelLabel = desc
-            statusLine = "就绪 · \(threadCount(info)) 线程 · \(context(info)) ctx"
-        } catch {
-            errorText = error.localizedDescription
         }
     }
 

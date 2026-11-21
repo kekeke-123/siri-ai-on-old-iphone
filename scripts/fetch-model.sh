@@ -26,7 +26,12 @@ Qwen3.5-0.8B-Q4_K_M.gguf|https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolv
 qwen2.5-0.5b-instruct-q4_k_m.gguf|https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf|450000000
 "
 
+MID_MODELS="
+Qwen3.5-0.8B-Q4_K_M.gguf|https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/main/Qwen3.5-0.8B-Q4_K_M.gguf|500000000
+"
+
 case "${SPK_MODEL_SET:-full}" in
+    mid) MODELS="$MID_MODELS" ;;
     compat) MODELS="$COMPAT_MODELS" ;;
     full|"") MODELS="$FULL_MODELS" ;;
     *) echo "unknown SPK_MODEL_SET=${SPK_MODEL_SET}"; exit 2 ;;

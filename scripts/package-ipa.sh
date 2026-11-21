@@ -28,6 +28,8 @@ cp -R "$SRC_APP" "$OUT/Payload/"
 APP="$OUT/Payload/SiriAI.app"
 find "$APP" -name '*.dSYM' -exec rm -rf {} + 2>/dev/null || true
 rm -rf "$APP/Metadata.appintents"
+# Live Activities are deferred: the extension also broke third party resign tools.
+rm -rf "$APP/PlugIns"
 
 echo "== load commands of main executable =="
 EXE="$APP/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Info.plist")"

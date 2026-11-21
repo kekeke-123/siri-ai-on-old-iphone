@@ -112,7 +112,7 @@ struct SettingsView: View {
     }
 
     private var ggufType: UTType {
-        UTType(filenameExtension: "gguf") ?? .data
+        UTType.data // .gguf has no registered UTI; a dynamic one leaves the file untappable
     }
 
     private func row(_ title: String, _ value: String) -> some View {
