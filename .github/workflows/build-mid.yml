@@ -1,0 +1,134 @@
+name: build-mid
+# Mid build: app with only the Qwen3.5-0.8B weights (~510 MB). The widget
+# extension is dropped at packaging time, and the import fixes are in, so this
+# is the build meant for real device testing.
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'app/**'
+      - 'kernel/**'
+      - 'scripts/**'
+      - '.github/workflows/build-mid.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CI_LOG: ${{ github.workspace }}/build/ci.log
+
+jobs:
+  ipa:
+    name: ipa (mid)
+    runs-on: macos-15-intel
+    timeout-minutes: 180
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Toolchain
+        run: |
+          set -o pipefail
+          mkdir -p build
+          { xcodebuild -version; brew install xcodegen; } 2>&1 | tee -a "$CI_LOG"
+
+      - name: Fetch runtime and apply kernel patches
+        run: |
+          set -o pipefail
+          bash ./scripts/fetch-runtime.sh 2>&1 | tee -a "$CI_LOG"
+
+      - name: Fetch bundled weights (mid)
+        env:
+          SPK_MODEL_SET: mid
+        run: |
+          set -o pipefail
+          bash ./scripts/fetch-model.sh 2>&1 | tee -a "$CI_LOG"
+
+      - name: Kernel syntax gate
+        run: |
+          set -o pipefail
+          clang++ -std=c++17 -fsyntax-only \
+            -I kernel/include -I kernel/include/spk -I kernel/src \
+            -I third_party/runtime/include \
+            -I third_party/runtime/ggml/include \
+            -I third_party/runtime/tools/mtmd \
+            kernel/src/*.cpp 2>&1 | tee -a "$CI_LOG"
+
+      - name: Build kernel for iOS arm64
+        run: |
+          set -o pipefail
+          bash ./scripts/build-ios.sh 2>&1 | tee -a "$CI_LOG"
+
+      - name: Generate vendor xcconfig
+        run: |
+          set -o pipefail
+          bash ./scripts/gen-xcconfig.sh 2>&1 | tee -a "$CI_LOG"
+
+      - name: Generate Xcode project
+        run: |
+          set -o pipefail
+          cd app
+          xcodegen generate 2>&1 | tee -a "$CI_LOG"
+
+      - name: Build app (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project app/SiriAI.xcodeproj \
+            -scheme SiriAI \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee -a "$CI_LOG"
+
+      - name: Package IPA
+        run: |
+          set -o pipefail
+          bash ./scripts/package-ipa.sh 2>&1 | tee -a "$CI_LOG"
+
+      - name: Name the artifact
+        run: |
+          mv build/out/SiriAI-unsigned.ipa build/out/SiriAI-unsigned-mid.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SiriAI-unsigned-ipa-mid
+          path: build/out/SiriAI-unsigned-mid.ipa
+          if-no-files-found: error
+
+      - name: Publish unsigned IPA to rolling release
+        if: success()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest-build-mid
+          name: SiriAI unsigned .ipa (mid, Qwen3.5-0.8B only)
+          body: |
+            Mid build: Qwen3.5-0.8B bundled, no widget extension.
+            run ${{ github.run_id }} @ ${{ github.sha }}
+          prerelease: true
+          files: build/out/SiriAI-unsigned-mid.ipa
+
+      - name: Publish failure log
+        if: failure()
+        run: |
+          {
+            echo "# build-mid failure";
+            echo "run: ${{ github.run_id }} @ ${{ github.sha }}";
+            echo; echo '```';
+            tail -n 400 build/ci.log 2>/dev/null || echo 'no log';
+            echo '```';
+          } > /tmp/fail-mid.md
+          git fetch --depth 10 origin main
+          git reset --hard origin/main
+          cp /tmp/fail-mid.md CI_LOG.md
+          git add -f CI_LOG.md
+          git -c user.name='spk-ci' -c user.email='spk-ci@users.noreply.github.com' commit -m "ci: mid failure log ${{ github.run_id }}"
+          git push origin HEAD:main || true
