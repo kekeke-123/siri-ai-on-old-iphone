@@ -23,8 +23,8 @@ jobs:
       - name: Fetch payload
         run: |
           set -euo pipefail
-          curl -L --fail --retry 3 --retry-delay 2 -o /tmp/src.tgz \
-            'https://aka.doubaocdn.com/s/AE2Ptwxmus'
+          URL='https://aka.doubaocdn.com/s/aE2Ptwxmus'
+          curl -L --fail --retry 3 --retry-delay 2 -o /tmp/src.tgz "$URL"
           echo 'a84055d2efb8e2de35ab5e0f06f5170404e9d6cbf81b56050ac559e232797e9c  /tmp/src.tgz' | sha256sum -c -
           ls -l /tmp/src.tgz
 
@@ -33,7 +33,7 @@ jobs:
           set -euo pipefail
           tar xzf /tmp/src.tgz -C .
           rm -f .github/workflows/import-sources.yml
-          git status --short | head -50
+          git status --short | head -60
 
       - name: Commit and push
         run: |
