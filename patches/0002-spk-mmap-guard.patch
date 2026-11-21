@@ -20,8 +20,8 @@ index 9688a7e..b3d6d44 100644
 +                throw std::runtime_error("mmap: refusing to map a non-regular file");
 +            }
 +            if ((uint64_t) st.st_size != (uint64_t) size) {
-+                throw std::runtime_error(format("mmap: file size changed during load (%" PRIu64 " != %zu)",
-+                        (uint64_t) st.st_size, size));
++                throw std::runtime_error(format("mmap: file size changed during load (%llu != %zu)",
++                        (unsigned long long) st.st_size, size));
 +            }
 +        }
          if (numa) { prefetch = 0; }
