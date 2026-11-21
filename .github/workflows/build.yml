@@ -7,17 +7,13 @@ on:
   pull_request:
   workflow_dispatch:
 
-concurrency:
-  group: build-${{ github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: write
 
 jobs:
   ipa:
     runs-on: macos-14
-    timeout-minutes: 90
+    timeout-minutes: 120
     env:
       CI_LOG: build/ci.log
 
