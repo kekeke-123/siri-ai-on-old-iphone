@@ -2,6 +2,8 @@ name: build-lean
 # Lean build: the app with no bundled weights, for install checks and for
 # devices where downloading a 1 GB IPA is impractical. Models can be imported
 # later from the Files app; the kernel stays identical.
+# Rebuilt with the GGUF import fixes (UTI declaration, data-typed picker,
+# background import) and without the widget extension.
 
 on:
   push:
