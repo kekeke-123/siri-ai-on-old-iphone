@@ -12,16 +12,50 @@ struct SettingsView: View {
     @State private var showTranslate = false
     @State private var pickedMmproj: URL?
 
+    @State private var apiBase = ""
+    @State private var apiKey = ""
+    @State private var apiModel = "gpt-4o-mini"
+
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Text("主模型（SLM）")) {
-                    Text(model.modelLabel).font(.system(size: 13)).foregroundColor(.secondary)
+                Section(header: Text("模型"), footer: Text("默认按机型选：iPhone 11 / SE2 及更老用 0.5B，更新的用 0.8B。自动模式会按任务在低/中/高之间切换。")) {
+                    Picker("模式", selection: Binding(get: { model.mode }, set: { model.setMode($0) })) {
+                        ForEach(ModelMode.allCases) { Text($0.title).tag($0) }
+                    }
+                    row("机型", DeviceProfile.summary)
+                    row("当前模型", model.modelLabel)
+                    row("当前档位", model.activeTier?.shortLabel ?? "—")
+                    ForEach(ModelTier.allCases) { tier in
+                        row("内置 \(tier.shortLabel)", ModelTier.bundledURL(tier) == nil ? "未随包" : tier.label)
+                    }
+                }
+
+                Section(header: Text("导入 / 自定义")) {
                     Button("导入 GGUF 模型") { showModel = true }
                     Button("导入视觉投影 mmproj") { showMmproj = true }
                     Button("导入翻译专用模型") { showTranslate = true }
-                    Text("把 GGUF 放进「文件」App 的 Siri AI 目录，或直接从 iCloud 选。1B 左右的 Q4 模型最适合 4GB 内存的机型。")
+                    Text("导入后自动切到「自定义」，覆盖内置权重；文件会拷进 App 沙盒的 Models 目录。")
                         .font(.system(size: 11)).foregroundColor(.secondary)
+                }
+
+                Section(header: Text("云端 API（次要）"), footer: Text("本地永远优先。只有选「云端 API」或本地没模型可加载时，才会走这里。地址填 OpenAI 兼容的 /v1 前缀即可。")) {
+                    TextField("https://api.example.com/v1", text: $apiBase)
+                        .keyboardType(.URL)
+                        .textInputAutocapitalization(.never)
+                        .disableAutocorrection(true)
+                    SecureField("API Key（可留空）", text: $apiKey)
+                    TextField("模型名，如 gpt-4o-mini", text: $apiModel)
+                        .textInputAutocapitalization(.never)
+                        .disableAutocorrection(true)
+                    Button("保存 API 设置") {
+                        var cfg = model.remoteConfig
+                        cfg.baseURL = apiBase.trimmingCharacters(in: .whitespacesAndNewlines)
+                        cfg.apiKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                        cfg.model = apiModel.trimmingCharacters(in: .whitespacesAndNewlines)
+                        model.remoteConfig = cfg
+                    }
+                    row("状态", RemoteBackend.shared.isConfigured ? "已配置" : "未配置")
                 }
 
                 Section(header: Text("语音")) {
@@ -44,19 +78,21 @@ struct SettingsView: View {
 
                 Section(header: Text("会话")) {
                     Button("清空对话") { model.clear() }
-                    Button("重新加载模型") {
-                        if let first = ModelStore.existing().first {
-                            model.importModel(first, mmproj: nil)
-                        }
-                    }
+                    Button("重新加载当前模型") { model.setMode(model.mode) }
                 }
 
-                Section(footer: Text("Siri AI on old iPhone · 内核 \(kernelVersion()) · 全部推理在本机完成，模型文件与对话不会上传。")) {
+                Section(footer: Text("Siri AI on old iPhone · 内核 \(kernelVersion()) · 默认全程本机推理，模型文件与对话不上传。")) {
                     EmptyView()
                 }
             }
             .navigationBarTitle("设置", displayMode: .inline)
             .navigationBarItems(trailing: Button("完成") { presentation.wrappedValue.dismiss() })
+            .onAppear {
+                let cfg = model.remoteConfig
+                apiBase = cfg.baseURL
+                apiKey = cfg.apiKey
+                apiModel = cfg.model
+            }
             .fileImporter(isPresented: $showModel, allowedContentTypes: [ggufType], allowsMultipleSelection: false) { r in
                 if case .success(let urls) = r, let u = urls.first {
                     model.importModel(u, mmproj: pickedMmproj)
@@ -97,6 +133,6 @@ struct SettingsView: View {
     }
 
     private func kernelVersion() -> String {
-        "1.4.0"
+        "1.4.2"
     }
 }
