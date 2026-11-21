@@ -2,6 +2,11 @@
 # Generate app/SPKVendor.xcconfig from the artefacts produced by build-ios.sh.
 # Xcode xcconfig re-assignment replaces the previous value, so every flag has to
 # live on one OTHER_LDFLAGS line.
+#
+# -no_fixup_chains keeps the classic LC_DYLD_INFO_ONLY rebase/bind tables instead
+# of LC_DYLD_CHAINED_FIXUPS. Newer resign engines (the phone side signing apps in
+# particular) still take apart the old tables and choke on chained fixups, which
+# is what produced "CodeDirectory 与 Mach-O 不一致" on our builds.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -33,6 +38,7 @@ done < <(find "$BUILD" -name '*.a' -not -path '*/CMakeFiles/*' | sort)
     printf ' -framework Accelerate -framework Foundation -framework UIKit'
     printf ' -framework AVFoundation -framework Speech -framework WidgetKit'
     printf ' -weak_framework ActivityKit -weak_framework AppIntents'
+    printf ' -Wl,-no_fixup_chains'
     printf '%s\n' "$libs"
 } > "$OUT"
 
