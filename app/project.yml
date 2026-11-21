@@ -29,6 +29,11 @@ targets:
     sources:
       - path: Sources
       - path: Shared
+      # bundled GGUF weights land here (folder reference, so the tree is copied
+      # into the .app verbatim and nothing is re-encoded)
+      - path: Resources
+        optional: true
+        type: folder
       # only the ObjC++ bridge is compiled in-target; the rest of the kernel
       # arrives as libspk.a from build/kernel
       - path: ../kernel/ios

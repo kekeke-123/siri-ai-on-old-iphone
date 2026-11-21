@@ -25,17 +25,21 @@ final class AssistantModel: ObservableObject {
     @Published var modelLabel = "未加载"
     @Published var autoSpeak = true
     @Published var thinking = false
+    @Published var mode: ModelMode = .auto
+    @Published var activeTier: ModelTier?
 
     private let bridge = SPKAssistant.instance()
     private let synth = AVSpeechSynthesizer()
 
-    // Streaming are coalesced before they touch a @Published property: the
-    // kernel already batches to ~20 ms, this catches the rest and keeps SwiftUI
-    // from re-laying out a growing string on every token.
     private var pendingPiece = ""
     private var flushWork: DispatchWorkItem?
+    private var builtinAttempted = false
 
     private init() {
+        if let raw = UserDefaults.standard.object(forKey: "spk.model.mode") as? Int,
+           let saved = ModelMode(rawValue: raw) {
+            mode = saved
+        }
         messages.append(ChatMessage(role: .assistant,
                                     text: "我是 Siri AI，跑在你这台老 iPhone 上。模型完全在本地，语音不出设备。"))
     }
@@ -55,6 +59,9 @@ final class AssistantModel: ObservableObject {
                 return
             }
             ready = true
+            activeTier = nil
+            mode = .custom
+            UserDefaults.standard.set(ModelMode.custom.rawValue, forKey: "spk.model.mode")
             visionReady = bridge.visionReady
             errorText = nil
             let info = bridge.info()
@@ -80,20 +87,109 @@ final class AssistantModel: ObservableObject {
         }
     }
 
+    // MARK: bundled tiers
+
+    /// Entry point on launch: honour the persisted mode, otherwise pick the
+    /// device default (iPhone 11 / SE2 and older get the 0.5B model).
+    func loadBuiltinIfAvailable() {
+        guard !ready, !builtinAttempted else { return }
+        builtinAttempted = true
+        if mode == .api {
+            statusLine = RemoteBackend.shared.isConfigured ? "API 模式" : "还没配 API"
+            return
+        }
+        let wanted = mode.tier ?? DeviceProfile.defaultTier
+        guard let tier = ModelRouter.resolve(wanted), let url = ModelTier.bundledURL(tier) else {
+            statusLine = "没有可用的内置模型"
+            return
+        }
+        load(tier: tier, url: url)
+    }
+
+    func setMode(_ newMode: ModelMode) {
+        mode = newMode
+        UserDefaults.standard.set(newMode.rawValue, forKey: "spk.model.mode")
+        builtinAttempted = true
+
+        if newMode == .api {
+            ready = false
+            activeTier = nil
+            statusLine = RemoteBackend.shared.isConfigured ? "API 模式（本地停用）" : "API 模式，先去下面填地址"
+            return
+        }
+        if newMode == .custom { return }   // custom waits for an import
+
+        guard let tier = newMode.tier ?? ModelRouter.resolve(DeviceProfile.defaultTier),
+              let url = ModelTier.bundledURL(tier) else {
+            statusLine = "这个包没带该档位的模型"
+            return
+        }
+        if ready && activeTier == tier { return }
+        ready = false
+        load(tier: tier, url: url)
+    }
+
+    private func load(tier: ModelTier, url: URL, then: (() -> Void)? = nil) {
+        statusLine = "\(tier.shortLabel) \(tier.label) 加载中…"
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            let loadError = self.bridge.loadModel(atPath: url.path, mmprojPath: nil)
+            DispatchQueue.main.async {
+                if let loadError = loadError {
+                    self.errorText = loadError
+                    self.statusLine = "\(tier.shortLabel) 加载失败"
+                    self.ready = false
+                    return
+                }
+                self.ready = true
+                self.activeTier = tier
+                self.visionReady = self.bridge.visionReady
+                self.modelLabel = tier.label
+                let info = self.bridge.info() as [AnyHashable: Any]
+                self.statusLine = "\(tier.shortLabel) \(tier.label) · \(self.threadCount(info)) 线程 · \(self.context(info)) ctx"
+                then?()
+            }
+        }
+    }
+
     // MARK: talking
 
     func send(_ text: String, imagePath: String? = nil) {
         let prompt = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !prompt.isEmpty else { return }
-        guard ready else {
-            errorText = "先在设置里导入一个 GGUF 小模型"
+
+        // local first, API only when explicitly selected or nothing local is up
+        if mode == .api || (!ready && RemoteBackend.shared.isConfigured) {
+            appendUser(prompt, imagePath: imagePath)
+            askRemote(prompt)
             return
         }
 
-        messages.append(ChatMessage(role: .user, text: prompt, imagePath: imagePath))
-        streaming = ""
-        thinking = true
-        orb = .thinking
+        guard ready else {
+            errorText = "设置页导入一个 GGUF，或者填一个 API 地址"
+            return
+        }
+
+        // auto mode: pick a tier from the prompt, swap the model if it differs
+        if mode == .auto {
+            let preferred = ModelRouter.preferredTier(for: prompt)
+            if let tier = ModelRouter.resolve(preferred),
+               tier != activeTier,
+               let url = ModelTier.bundledURL(tier) {
+                statusLine = "自动切到 \(tier.shortLabel) \(tier.label)"
+                ready = false
+                load(tier: tier, url: url) { [weak self] in
+                    self?.startAsk(prompt, imagePath: imagePath)
+                }
+                return
+            }
+        }
+
+        startAsk(prompt, imagePath: imagePath)
+    }
+
+    private func startAsk(_ prompt: String, imagePath: String?) {
+        appendUser(prompt, imagePath: imagePath)
 
         let images: [String] = imagePath.map { [$0] } ?? []
 
@@ -145,6 +241,39 @@ final class AssistantModel: ObservableObject {
         guard !pendingPiece.isEmpty else { return }
         streaming += pendingPiece
         pendingPiece = ""
+    }
+
+    private func appendUser(_ prompt: String, imagePath: String?) {
+        messages.append(ChatMessage(role: .user, text: prompt, imagePath: imagePath))
+        streaming = ""
+        thinking = true
+        orb = .thinking
+    }
+
+    private func askRemote(_ prompt: String) {
+        RemoteBackend.shared.stream(prompt: prompt, system: nil, onToken: { [weak self] piece in
+            DispatchQueue.main.async { self?.enqueuePiece(piece) }
+        }, completion: { [weak self] answer, error in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.flushPiece()
+                self.thinking = false
+                let text = answer ?? self.streaming
+                self.streaming = ""
+                if let text = text, !text.isEmpty {
+                    self.messages.append(ChatMessage(role: .assistant, text: text))
+                    if self.autoSpeak { self.speak(text) }
+                } else if let error = error {
+                    self.errorText = error.localizedDescription
+                }
+                self.orb = .idle
+            }
+        })
+    }
+
+    var remoteConfig: RemoteBackend.Config {
+        get { RemoteBackend.shared.config }
+        set { RemoteBackend.shared.config = newValue }
     }
 
     func clear() {
