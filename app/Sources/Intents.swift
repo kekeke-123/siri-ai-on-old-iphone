@@ -75,10 +75,13 @@ struct TranslateWithSiriAIIntent: AppIntent {
 
 @available(iOS 16.0, *)
 struct SiriAIShortcuts: AppShortcutsProvider {
+    // Phrase parameters may only be AppEntity/AppEnum, so the free-form text
+    // inputs are left to Siri's own prompted parameter slot instead of being
+    // interpolated into the phrase.
     static var appShortcuts: [AppShortcut] {
         AppShortcut(intent: AskSiriAIIntent(),
-                    phrases: ["问\(.applicationName) \(\.$request)",
-                              "Ask \(.applicationName) \(\.$request)"],
+                    phrases: ["问\(.applicationName)",
+                              "Ask \(.applicationName)"],
                     shortTitle: "问 Siri AI",
                     systemImageName: "sparkles")
         AppShortcut(intent: OpenSiriAIIntent(),
@@ -87,7 +90,8 @@ struct SiriAIShortcuts: AppShortcutsProvider {
                     shortTitle: "打开 Siri AI",
                     systemImageName: "waveform")
         AppShortcut(intent: TranslateWithSiriAIIntent(),
-                    phrases: ["用\(.applicationName)翻译\(\.$text)"],
+                    phrases: ["用\(.applicationName)翻译",
+                              "Translate with \(.applicationName)"],
                     shortTitle: "Siri AI 翻译",
                     systemImageName: "character.book.closed")
     }
