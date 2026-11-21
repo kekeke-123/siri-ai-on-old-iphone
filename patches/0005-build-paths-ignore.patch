@@ -1,0 +1,14 @@
+--- a/.github/workflows/build.yml
++++ b/.github/workflows/build.yml
+@@ -4,6 +4,12 @@
+   push:
+     branches: [ main ]
+     tags: [ "v*" ]
++    # docs and workflow plumbing do not need a 20 minute 1.8 GB build
++    paths-ignore:
++      - "**.md"
++      - "docs/**"
++      - "patches/**"
++      - ".github/workflows/**"
+   pull_request:
+   workflow_dispatch:
