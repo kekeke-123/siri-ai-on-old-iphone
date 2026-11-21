@@ -86,10 +86,16 @@ jobs:
           path: build/out/SiriAI-unsigned.ipa
           if-no-files-found: error
 
-      - name: Attach IPA to release
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Publish unsigned IPA to rolling release
+        if: success()
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: latest-build
+          name: SiriAI unsigned .ipa (rolling)
+          body: |
+            Automated unsigned build, no signing at all.
+            run ${{ github.run_id }} @ ${{ github.sha }}
+          prerelease: true
           files: build/out/SiriAI-unsigned.ipa
 
       - name: Publish failure log
