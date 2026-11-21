@@ -10,12 +10,13 @@ on:
 permissions:
   contents: write
 
+env:
+  CI_LOG: ${{ github.workspace }}/build/ci.log
+
 jobs:
   ipa:
     runs-on: macos-15-intel
     timeout-minutes: 120
-    env:
-      CI_LOG: build/ci.log
 
     steps:
       - uses: actions/checkout@v4
@@ -54,9 +55,9 @@ jobs:
           ./scripts/gen-xcconfig.sh 2>&1 | tee -a "$CI_LOG"
 
       - name: Generate Xcode project
-        working-directory: app
         run: |
           set -o pipefail
+          cd app
           xcodegen generate 2>&1 | tee -a "$CI_LOG"
 
       - name: Build app (unsigned)
@@ -98,7 +99,7 @@ jobs:
             echo "# build failure";
             echo "run: ${{ github.run_id }} @ ${{ github.sha }}";
             echo; echo '```';
-            tail -n 250 build/ci.log 2>/dev/null || echo 'no log';
+            tail -n 400 build/ci.log 2>/dev/null || echo 'no log';
             echo '```';
           } > /tmp/fail.md
           for i in 1 2 3; do
