@@ -2,6 +2,8 @@ name: build-mid
 # Mid build: app with only the Qwen3.5-0.8B weights (~510 MB). The widget
 # extension is dropped at packaging time, and the import fixes are in, so this
 # is the build meant for real device testing.
+# Triggered explicitly after the patch-apply bot commits (bot pushes do not
+# start workflows on their own).
 
 on:
   push:
