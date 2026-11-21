@@ -60,6 +60,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: ai.siriplus.app.widget
         PRODUCT_NAME: SiriAIWidget
         TARGETED_DEVICE_FAMILY: 1
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) SPK_WIDGET"
 
 schemes:
   SiriAI:
