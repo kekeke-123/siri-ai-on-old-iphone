@@ -19,6 +19,7 @@ settings:
     CODE_SIGNING_REQUIRED: NO
     CODE_SIGN_IDENTITY: ""
     ONLY_ACTIVE_ARCH: NO
+    IPHONEOS_DEPLOYMENT_TARGET: "15.0"
 
 targets:
   SiriAI:
@@ -28,8 +29,12 @@ targets:
     sources:
       - path: Sources
       - path: Shared
-      - path: ../kernel/src
+      # only the ObjC++ bridge is compiled in-target; the rest of the kernel
+      # arrives as libspk.a from build/kernel
       - path: ../kernel/ios
+        includes:
+          - "*.h"
+          - "*.mm"
     settings:
       base:
         INFOPLIST_FILE: Sources/Info.plist
