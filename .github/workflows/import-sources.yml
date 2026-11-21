@@ -1,12 +1,12 @@
 name: import-sources
 
-# Decodes the base64 payload committed under import/, verifies it byte for byte,
-# expands the sources, then starts the iOS build. Removes itself.
+# One-shot: grabs the packaged sources over a plain HTTPS POST, verifies the
+# digest, expands them and starts the iOS build. Removes itself afterwards.
 on:
   workflow_dispatch:
   push:
     paths:
-      - 'import/READY'
+      - '.github/workflows/import-sources.yml'
 
 permissions:
   contents: write
@@ -20,34 +20,30 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify and decode
+      - name: Fetch and verify
         run: |
           set -euo pipefail
-          sha256sum -c import/MANIFEST
-          cat import/p-*.b64 | base64 -d > /tmp/src.tgz
-          expected=$(cat import/HASH)
-          actual=$(sha256sum /tmp/src.tgz | cut -d' ' -f1)
-          echo "expected=$expected"
-          echo "actual=$actual"
-          [ "$expected" = "$actual" ]
+          curl -sSL --fail --retry 3 --retry-delay 2 -X POST \
+            -o /tmp/src.tgz 'https://temp.sh/tugNU/spk-src.tgz'
           ls -l /tmp/src.tgz
+          echo 'a84055d2efb8e2de35ab5e0f06f5170404e9d6cbf81b56050ac559e232797e9c  /tmp/src.tgz' | sha256sum -c -
 
       - name: Expand
         run: |
           set -euo pipefail
           tar xzf /tmp/src.tgz -C .
-          rm -rf import
+          rm -rf import IMPORT_LOG.md
           rm -f .github/workflows/import-sources.yml
-          find . -path ./.git -prune -o -type f -print | sort | head -60
+          git status --short | head -60
 
-      - name: Commit
+      - name: Commit and push
         run: |
           set -euo pipefail
           git config user.name  'spk-import'
           git config user.email 'spk-import@users.noreply.github.com'
           git add -A
           git commit -m 'feat: import Siri Plus kernel, app, scripts, patches and CI'
-          git push origin HEAD:main || true
+          git push origin HEAD:main
 
       - name: Start the iOS build
         env:
