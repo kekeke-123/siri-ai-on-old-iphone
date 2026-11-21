@@ -167,6 +167,10 @@ void spk_session_destroy(spk_session * ses) {
         spk_secure_zero(ses->prefix.data(), ses->prefix.size());
         spk_secure_zero(ses->checkpoint.data(), ses->checkpoint.size());
     }
+    if (ses->smpl != nullptr) {
+        spk_sampler_free(ses->smpl);
+        ses->smpl = nullptr;
+    }
     delete ses;
 }
 
@@ -272,6 +276,34 @@ spk_status spk_session_warmup(spk_session * ses) {
     }
     ses->prefix_tokens = toks;
     return SPK_OK;
+}
+
+// One sampling chain per session, keyed on the generation parameters. seed == 0
+// means "random for this chain", so the reuse keeps the RNG advancing instead of
+// reseeding on every turn.
+static spk_sampler * spk_session_sampler(spk_session * ses,
+                                         const spk_gen_params * params,
+                                         int32_t n_vocab) {
+    spk_gen_params p{};
+    if (params != nullptr) {
+        p = *params;
+    }
+    const bool reusable = ses->smpl != nullptr &&
+        ses->smpl_vocab == n_vocab &&
+        std::memcmp(&ses->smpl_cfg, &p, sizeof(p)) == 0;
+    if (reusable) {
+        return ses->smpl;
+    }
+    if (ses->smpl != nullptr) {
+        spk_sampler_free(ses->smpl);
+        ses->smpl = nullptr;
+    }
+    ses->smpl = spk_make_sampler(params, n_vocab);
+    if (ses->smpl != nullptr) {
+        ses->smpl_cfg   = p;
+        ses->smpl_vocab = n_vocab;
+    }
+    return ses->smpl;
 }
 
 spk_status spk_session_generate(spk_session * ses, const spk_gen_params * params,
@@ -391,10 +423,11 @@ spk_status spk_session_generate(spk_session * ses, const spk_gen_params * params
 
     // ---- decode -------------------------------------------------------
     const spk_vocab * vocab = spk_model_get_vocab(eng->text.model);
-    spk_sampler * smpl = spk_make_sampler(params, spk_vocab_n_tokens(vocab));
+    spk_sampler * smpl = spk_session_sampler(ses, params, spk_vocab_n_tokens(vocab));
     if (smpl == nullptr) {
         return SPK_ERR_INTERNAL;
     }
+    spk_sampler_reset(smpl);
     const int32_t n_ctx = (int32_t) spk_n_ctx(eng->text.ctx);
     const int32_t max_tokens = (params != nullptr && params->max_tokens > 0)
         ? params->max_tokens : 256;
@@ -403,6 +436,33 @@ spk_status spk_session_generate(spk_session * ses, const spk_gen_params * params
     bool first = true;
     spk_status status = SPK_OK;
     double t_decode = 0.0;
+
+    // Reuse a single one-token batch: allocating one per token used to cost
+    // half a dozen malloc/free pairs per emitted token, which shows up as
+    // timing jitter on an otherwise smooth 30 tok/s decode.
+    spk_batch one = spk_batch_init(1, 0, 1);
+    if (one.token == nullptr) {
+        return SPK_ERR_INTERNAL;
+    }
+
+    // Coalesce pieces before they cross the C/Swift boundary: one callback per
+    // token wakes the bridge and the UI thread ~30 times a second, and re-layout
+    // on every character is what makes old phones feel slow.
+    std::string pending;
+    auto last_flush = std::chrono::steady_clock::now();
+    auto flush = [&](bool force) {
+        if (pending.empty()) {
+            return;
+        }
+        const auto now = std::chrono::steady_clock::now();
+        const double age = std::chrono::duration<double, std::milli>(now - last_flush).count();
+        if (!force && pending.size() < 96 && age < 20.0) {
+            return;
+        }
+        spk_emit(on_token, user_data, pending.c_str(), false);
+        pending.clear();
+        last_flush = now;
+    };
 
     for (int32_t i = 0; i < max_tokens; ++i) {
         if (eng->cancel.load()) {
@@ -422,8 +482,8 @@ spk_status spk_session_generate(spk_session * ses, const spk_gen_params * params
         char piece[256];
         int32_t np = spk_token_to_piece(vocab, id, piece, (int32_t) sizeof(piece) - 1, 0, false);
         if (np > 0) {
-            piece[np] = '\0';
-            spk_emit(on_token, user_data, piece, false);
+            pending.append(piece, (size_t) np);
+            flush(false);
         }
 
         ses->tokens.push_back(id);
@@ -442,14 +502,12 @@ spk_status spk_session_generate(spk_session * ses, const spk_gen_params * params
         }
 
         const double td0 = now_ms();
-        spk_batch one = spk_batch_init(1, 0, 1);
         one.token[0]    = id;
         one.pos[0]      = ses->n_past;
         one.n_seq_id[0] = 1;
         one.seq_id[0][0] = 0;
         one.logits[0]   = 1;
         const int32_t rc = spk_decode(eng->text.ctx, one);
-        spk_batch_free(one);
         if (rc != 0) {
             spk_set_error(eng, "decode failed with %d", rc);
             status = SPK_ERR_CONTEXT;
@@ -459,7 +517,8 @@ spk_status spk_session_generate(spk_session * ses, const spk_gen_params * params
         t_decode += now_ms() - td0;
     }
 
-    spk_sampler_free(smpl);
+    flush(true);
+    spk_batch_free(one);
     spk_emit(on_token, user_data, nullptr, true);
 
     if (generated > 1 && t_decode > 0.0) {

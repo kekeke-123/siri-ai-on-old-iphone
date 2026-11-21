@@ -29,6 +29,12 @@ final class AssistantModel: ObservableObject {
     private let bridge = SPKAssistant.instance()
     private let synth = AVSpeechSynthesizer()
 
+    // Streaming are coalesced before they touch a @Published property: the
+    // kernel already batches to ~20 ms, this catches the rest and keeps SwiftUI
+    // from re-laying out a growing string on every token.
+    private var pendingPiece = ""
+    private var flushWork: DispatchWorkItem?
+
     private init() {
         messages.append(ChatMessage(role: .assistant,
                                     text: "我是 Siri AI，跑在你这台老 iPhone 上。模型完全在本地，语音不出设备。"))
@@ -92,22 +98,23 @@ final class AssistantModel: ObservableObject {
         let images: [String] = imagePath.map { [$0] } ?? []
 
         bridge.ask(prompt, images: images, onToken: { [weak self] piece, _ in
-            guard let self = self else { return }
-            if let piece = piece {
-                self.streaming += piece
-            }
+            guard let self = self, let piece = piece, !piece.isEmpty else { return }
+            DispatchQueue.main.async { self.enqueuePiece(piece) }
         }, completion: { [weak self] error in
-            guard let self = self else { return }
-            self.thinking = false
-            let answer = self.streaming
-            self.streaming = ""
-            if !answer.isEmpty {
-                self.messages.append(ChatMessage(role: .assistant, text: answer))
-                if self.autoSpeak { self.speak(answer) }
-            } else if let error = error {
-                self.errorText = error.localizedDescription
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.flushPiece()
+                self.thinking = false
+                let answer = self.streaming
+                self.streaming = ""
+                if !answer.isEmpty {
+                    self.messages.append(ChatMessage(role: .assistant, text: answer))
+                    if self.autoSpeak { self.speak(answer) }
+                } else if let error = error {
+                    self.errorText = error.localizedDescription
+                }
+                self.orb = .idle
             }
-            self.orb = .idle
         })
     }
 
@@ -117,8 +124,34 @@ final class AssistantModel: ObservableObject {
         orb = .idle
     }
 
+    private func enqueuePiece(_ piece: String) {
+        pendingPiece += piece
+        if pendingPiece.count >= 48 {
+            flushPiece()
+            return
+        }
+        guard flushWork == nil else { return }
+        let work = DispatchWorkItem { [weak self] in
+            self?.flushWork = nil
+            self?.flushPiece()
+        }
+        flushWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.033, execute: work)
+    }
+
+    private func flushPiece() {
+        flushWork?.cancel()
+        flushWork = nil
+        guard !pendingPiece.isEmpty else { return }
+        streaming += pendingPiece
+        pendingPiece = ""
+    }
+
     func clear() {
         bridge.resetConversation()
+        flushWork?.cancel()
+        flushWork = nil
+        pendingPiece = ""
         messages.removeAll()
         streaming = ""
         messages.append(ChatMessage(role: .assistant, text: "清空了，重新开始。"))

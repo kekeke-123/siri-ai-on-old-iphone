@@ -51,3 +51,25 @@ let m = SPKAssistant.instance().metrics()
 ```
 
 建议每档机型跑：冷启动一次问答、连续 10 轮、带图一次、翻译一次，记录 ttft 与 rss 峰值。
+
+## 1.4.1 这一轮改了什么
+
+| 改动 | 位置 | 为什么快 |
+| --- | --- | --- |
+| 采样链按会话缓存 | `spk_session_sampler()` | 原来的 penalties 采样器每次请求都要按词表大小分配数组并遍历整个 vocab（Qwen 系 15 万词表 → 每次约 2 MB 分配 + 15 万次写入）。现在同一组参数只建一次，`spk_sampler_reset()` 复位后复用 |
+| 复用一个 1-token batch | decode 循环 | 原来每生成一个 token 就 `spk_batch_init`/`free` 一次，30 tok/s 时约 180 次 malloc/free，抖动明显 |
+| token 拼接后再发 | decode 循环 | 满 96 字节或 20 ms 才跨层回调一次，C→ObjC→Swift 的桥接开销从每 token 一次降到每秒几十次 |
+| Swift 侧二次合并 | `AssistantModel` | 满 48 字或 33 ms 才写 `@Published`，避免长文本每加一个字就重新排版；顺带修掉了回调线程直接改 UI 状态的问题 |
+| 大内存机器加大 prefill slab | `spk_engine_create` | ≥6GB 机型 `n_batch=512 / n_ubatch=256`，长系统提示的 Metal graph 启动次数减半，TTFT 受益 |
+| 灵动岛更新合并 | `LiveActivityController` | 同一状态去重 + 最短 1 s 间隔 + 尾随补发，不再每个 token 刷新一次（Dynamic Island 有每小时更新预算，超了会直接被限流） |
+
+### 内容策略
+
+内核不做任何提示词过滤、关键词拦截或改写：`spk_session_append()` 只做 tokenize 和模板套用，`spk_guard_*` 只管文件完整性、路径越界、上下文溢出和内存上限。模型自身的训练对齐保持不变，但没有任何额外的内容层。
+
+### 怎么量
+
+```swift
+let m = SPKAssistant.instance().metrics()
+// decode_tok_s 会比 1.4.0 略高，ttft_ms 在 ≥6GB 机型上应下降
+```

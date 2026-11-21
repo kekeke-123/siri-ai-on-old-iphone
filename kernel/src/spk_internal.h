@@ -77,6 +77,13 @@ struct spk_session {
 
     spk_metrics last{};
     std::mutex  mu;
+
+    // Sampling chains are not free: the penalties sampler allocates several
+    // n_vocab sized arrays and walks the whole vocab. Reuse one chain per
+    // session instead of rebuilding it on every turn.
+    spk_sampler *  smpl      = nullptr;
+    spk_gen_params smpl_cfg{};
+    int32_t        smpl_vocab = 0;
 };
 
 // ---- shared helpers -------------------------------------------------
@@ -87,9 +94,6 @@ spk_slot * spk_slot_for(spk_engine * eng, spk_model_role role);
 spk_status spk_slot_load(spk_engine * eng, spk_slot & slot);
 void       spk_slot_unload(spk_slot & slot);
 
-// Single token-fanout point shared by generation, translation and vision.
-// Drop-in safe for a null callback, which is how the non-streaming callers
-// ask for "just collect the text".
 inline void spk_emit(spk_token_cb cb, void * ud, const char * piece, bool is_final) {
     if (cb != nullptr) {
         cb(piece, is_final, ud);

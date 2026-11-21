@@ -261,6 +261,16 @@ spk_status spk_engine_create(const spk_engine_config * cfg, spk_engine ** out,
 
     auto * eng = new spk_engine();
     eng->cfg = *cfg;
+
+    // Prompt ingestion is the one place where a bigger batch is pure win: a
+    // 512 token slab halves the number of Metal graph launches for long system
+    // prompts. Devices with 6 GB or more can afford the extra scratch memory.
+    if (eng->cfg.n_batch <= 0 || eng->cfg.n_ubatch <= 0) {
+        const bool big = spk_physical_ram() >= 6ull * 1024ull * 1024ull * 1024ull;
+        if (eng->cfg.n_batch  <= 0) eng->cfg.n_batch  = big ? 512 : 256;
+        if (eng->cfg.n_ubatch <= 0) eng->cfg.n_ubatch = big ? 256 : 128;
+    }
+
     eng->metal = cfg->use_metal;
 
     // one time backend init; cheap and idempotent from our side

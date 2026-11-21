@@ -109,6 +109,7 @@ typedef mtmd_helper_init_opt         spk_vision_opt;
 #define spk_sampler_greedy               llama_sampler_init_greedy
 #define spk_sampler_sample               llama_sampler_sample
 #define spk_sampler_accept               llama_sampler_accept
+#define spk_sampler_reset                llama_sampler_reset
 #define spk_sampler_free                 llama_sampler_free
 
 // -------------------------------------------------------------- sys
