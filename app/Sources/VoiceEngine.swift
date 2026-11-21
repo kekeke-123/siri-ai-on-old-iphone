@@ -70,7 +70,7 @@ final class VoiceEngine: ObservableObject {
             listening = true
             notice = nil
 
-            task = recognizer.recognitionTask(with: req, resultCallback: { [weak self] result, error in
+            task = recognizer.recognitionTask(with: req, resultHandler: { [weak self] result, error in
                 guard let self = self else { return }
                 if let result = result {
                     let text = result.bestTranscription.formattedString

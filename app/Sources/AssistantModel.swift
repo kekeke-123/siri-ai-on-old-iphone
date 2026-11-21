@@ -49,7 +49,7 @@ final class AssistantModel: ObservableObject {
                 return
             }
             ready = true
-            visionReady = bridge.visionReady()
+            visionReady = bridge.visionReady
             errorText = nil
             let info = bridge.info()
             let desc = (info["desc"] as? String) ?? local.lastPathComponent
@@ -138,7 +138,7 @@ final class AssistantModel: ObservableObject {
     }
 
     func updateThermal(_ state: Int) {
-        bridge.updateThermal(state: state)
+        bridge.updateThermalState(state)
     }
 
     func memoryWarning() {
@@ -146,7 +146,7 @@ final class AssistantModel: ObservableObject {
     }
 
     func metrics() -> [String: Any] {
-        (bridge.metrics() as? [String: Any]) ?? [:]
+        bridge.metrics()
     }
 
     private func threadCount(_ info: [AnyHashable: Any]) -> Int {
