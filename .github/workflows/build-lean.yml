@@ -4,8 +4,8 @@ name: build-lean
 # later from the Files app; the kernel stays identical.
 # GPU (Metal) is the default backend; CPU is only a fallback when the device
 # cannot hold the model.
-# Round 5: kernel 1.0.0 decode fix (batch.n_tokens), orb removed, adaptive
-# light/dark UI, Metal enabled by default.
+# Round 6: kernel 1.1.0 (per-session KV sequences, engine decode gate). Native
+# light/dark UI, orb removed. Metal kept as the default backend.
 
 on:
   push:
@@ -25,7 +25,7 @@ env:
 jobs:
   ipa:
     name: ipa (lean)
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 180
 
     steps:
@@ -105,10 +105,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest-build-lean
-          name: SiriAI unsigned .ipa (lean, no bundled weights)
+          name: LLAI unsigned .ipa (lean, kernel 1.1.0)
           body: |
             Lean unsigned build: app only, no GGUF inside. Import models from the Files app.
-            Kernel 1.0.0 with the batch.n_tokens decode fix; Metal on by default.
+            Kernel 1.1.0: per-session KV sequences, engine-level decode gate, deadlock fix.
+            Native light/dark UI, orb removed, Metal on by default.
             run ${{ github.run_id }} @ ${{ github.sha }}
           prerelease: true
           files: build/out/SiriAI-unsigned-lean.ipa
