@@ -52,6 +52,7 @@ int spk_decode_loop(spk_engine * eng, spk_context * ctx, spk_model * model,
         spk_sampler_accept(smpl, id);
 
         spk_batch one = spk_batch_init(1, 0, 1);
+        one.n_tokens = 1;
         one.token[0]     = id;
         one.pos[0]       = *io_past;
         one.n_seq_id[0]  = 1;
@@ -139,6 +140,7 @@ spk_status spk_translate(spk_engine * eng, const char * text,
         toks.resize((size_t) n);
 
         spk_batch enc = spk_batch_init((int32_t) toks.size(), 0, 1);
+        enc.n_tokens = (int32_t) toks.size();
         for (int32_t i = 0; i < (int32_t) toks.size(); ++i) {
             enc.token[i]      = toks[(size_t) i];
             enc.pos[i]        = i;
@@ -156,6 +158,7 @@ spk_status spk_translate(spk_engine * eng, const char * text,
 
         const spk_token_id start = (spk_token_id) spk_model_decoder_start_token(model);
         spk_batch one = spk_batch_init(1, 0, 1);
+        one.n_tokens = 1;
         one.token[0]     = start;
         one.pos[0]       = 0;
         one.n_seq_id[0]  = 1;
@@ -199,6 +202,7 @@ spk_status spk_translate(spk_engine * eng, const char * text,
         }
 
         spk_batch batch = spk_batch_init((int32_t) toks.size(), 0, 1);
+        batch.n_tokens = (int32_t) toks.size();
         for (int32_t i = 0; i < (int32_t) toks.size(); ++i) {
             batch.token[i]      = toks[(size_t) i];
             batch.pos[i]        = i;

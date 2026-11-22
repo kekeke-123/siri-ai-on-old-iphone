@@ -57,15 +57,31 @@ struct spk_engine {
     void *      log_ud  = nullptr;
 
     std::mutex mu;
+    // One decode at a time. llama_decode() is not reentrant on a context, and
+    // two sessions used to race on the same one; the session mutex only guards
+    // that session's bookkeeping, so the engine needs its own gate.
+    std::mutex gen_mu;
+    // error string is written from decode threads, so it gets its own lock
+    // (never take mu here: spk_set_error is called while mu is held).
+    std::mutex err_mu;
     bool       backend_up = false;
     bool       metal      = false;
     uint64_t   max_bytes  = 0;
+
+    // Sequence slots. With n_seq_max > 1 each session owns its own runtime
+    // sequence, so two conversations cannot overwrite each other's KV cache.
+    int32_t    n_seq_max = 8;
+    bool       seq_used[8] = {};
 };
 
 struct spk_session {
     spk_engine * eng = nullptr;
     std::string  system;
     std::vector<spk_msg> msgs;
+
+    // runtime sequence this session owns; every batch, KV read/write and
+    // snapshot is addressed by it instead of a hard-coded 0.
+    int32_t seq = 0;
 
     std::vector<spk_token_id> tokens;
     spk_pos n_past = 0;
@@ -92,6 +108,13 @@ struct spk_session {
 // ---- shared helpers -------------------------------------------------
 
 void spk_set_error(spk_engine * eng, const char * fmt, ...);
+
+// sequence slot pool (engine.cpp)
+int32_t spk_engine_alloc_seq(spk_engine * eng);
+void    spk_engine_free_seq(spk_engine * eng, int32_t seq);
+
+// batch size actually usable by this context (n_batch clamped to n_ctx)
+int32_t spk_effective_batch(spk_engine * eng);
 
 // last few llama.cpp log lines, joined by '|'; empty when nothing logged
 void spk_log_tail(char * out, size_t len);

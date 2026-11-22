@@ -54,7 +54,10 @@ void spk_set_error(spk_engine * eng, const char * fmt, ...) {
     vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
 
-    std::lock_guard<std::mutex> lock(eng->mu);
+    // err_mu, not mu: slot_load() and add_model() already hold mu when they
+    // report a failure. std::mutex is not recursive, so taking mu here made a
+    // failed model load hang instead of returning an error.
+    std::lock_guard<std::mutex> lock(eng->err_mu);
     eng->err = buf;
 }
 

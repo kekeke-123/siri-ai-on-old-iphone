@@ -28,7 +28,7 @@ extern "C" {
 #define SPK_VERSION_MAJOR 1
 #define SPK_VERSION_MINOR 4
 #define SPK_VERSION_PATCH 0
-#define SPK_VERSION_STRING "1.0.0"
+#define SPK_VERSION_STRING "1.1.0"
 
 /* ------------------------------------------------------------------ */
 /* status codes                                                        */

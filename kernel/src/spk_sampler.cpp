@@ -32,7 +32,12 @@ spk_sampler * spk_make_sampler(const spk_gen_params * in, int32_t n_vocab, const
     if (p.top_k <= 0)           p.top_k           = qwen ? 20 : 40;
     if (p.top_p <= 0.0f)        p.top_p           = qwen ? 0.8f : 0.95f;
     if (p.min_p < 0.0f)         p.min_p           = 0.0f;
-    if (p.temperature <= 0.0f)  p.temperature     = 0.7f;
+    // temperature == 0 means "use the default", which is how a zeroed
+    // spk_gen_params behaves. A negative value is the explicit greedy request,
+    // so it must be read before 0 gets replaced by 0.7 (that rewrite used to
+    // make the greedy branch below unreachable).
+    const bool greedy = p.temperature < 0.0f;
+    if (!greedy && p.temperature <= 0.0f)  p.temperature = 0.7f;
     if (p.repeat_penalty <= 0)  p.repeat_penalty  = qwen ? 1.05f : 1.1f;
     if (p.repeat_last_n <= 0)   p.repeat_last_n   = 64;
 
@@ -48,7 +53,7 @@ spk_sampler * spk_make_sampler(const spk_gen_params * in, int32_t n_vocab, const
                                                  0.0f,   // frequency penalty
                                                  0.0f)); // presence penalty
 
-    if (p.temperature <= 0.0f) {
+    if (greedy) {
         spk_sampler_add(chain, spk_sampler_greedy());
         return chain;
     }

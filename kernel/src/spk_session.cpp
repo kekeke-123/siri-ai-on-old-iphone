@@ -38,7 +38,7 @@ bool spk_eval_chunk(spk_engine * eng, spk_session * ses,
         batch.token[i]    = tokens[begin + (size_t) i];
         batch.pos[i]      = ses->n_past + i;
         batch.n_seq_id[i] = 1;
-        batch.seq_id[i][0] = 0;
+        batch.seq_id[i][0] = ses->seq;
         batch.logits[i]   = (logits_last && i == n - 1) ? 1 : 0;
     }
     const int32_t rc = spk_decode(ses->eng->text.ctx, batch);
@@ -62,7 +62,7 @@ bool spk_eval_chunk(spk_engine * eng, spk_session * ses,
 // enormous graph on a 4 GB device
 bool spk_prefill(spk_engine * eng, spk_session * ses,
                  const std::vector<spk_token_id> & tokens, size_t from, bool logits_last) {
-    const int32_t nb = (int32_t) std::max(64, eng->cfg.n_batch > 0 ? eng->cfg.n_batch : 256);
+    const int32_t nb = spk_effective_batch(eng);
     size_t cursor = from;
     while (cursor < tokens.size()) {
         if (eng->cancel.load()) {
@@ -202,8 +202,15 @@ spk_status spk_session_create(spk_engine * eng, spk_session ** out) {
     }
     auto * ses = new spk_session();
     ses->eng    = eng;
+    const int32_t seq = spk_engine_alloc_seq(eng);
+    if (seq < 0) {
+        delete ses;
+        spk_set_error(eng, "no free sequence slot (n_seq_max reached)");
+        return SPK_ERR_OUT_OF_MEMORY;
+    }
+    ses->seq    = seq;
     ses->system = eng->system_prompt.empty()
-        ? "You are Siri AI, a concise on-device assistant. Answer in the user's language."
+        ? "You are LLAI, a concise on-device assistant. Answer in the user's language."
         : eng->system_prompt;
     *out = ses;
     return SPK_OK;
@@ -220,6 +227,9 @@ void spk_session_destroy(spk_session * ses) {
     if (ses->smpl != nullptr) {
         spk_sampler_free(ses->smpl);
         ses->smpl = nullptr;
+    }
+    if (ses->eng != nullptr) {
+        spk_engine_free_seq(ses->eng, ses->seq);
     }
     delete ses;
 }
@@ -309,18 +319,18 @@ spk_status spk_session_warmup(spk_session * ses) {
         return SPK_ERR_INTERNAL;
     }
 
-    spk_memory_clear(spk_get_memory(eng->text.ctx), false);
+    spk_memory_seq_rm(spk_get_memory(eng->text.ctx), ses->seq, -1, -1);
     ses->n_past = 0;
     if (!spk_prefill(eng, ses, toks, 0, true)) {
         return SPK_ERR_CONTEXT;
     }
 
-    const size_t need = spk_state_size(eng->text.ctx, 0);
+    const size_t need = spk_state_size(eng->text.ctx, ses->seq);
     if (need == 0) {
         return SPK_ERR_UNSUPPORTED;
     }
     ses->prefix.assign(need, 0);
-    if (spk_state_read(eng->text.ctx, ses->prefix.data(), ses->prefix.size(), 0) != need) {
+    if (spk_state_read(eng->text.ctx, ses->prefix.data(), ses->prefix.size(), ses->seq) != need) {
         ses->prefix.clear();
         return SPK_ERR_INTERNAL;
     }
@@ -364,6 +374,10 @@ spk_status spk_session_generate(spk_session * ses, const spk_gen_params * params
     std::lock_guard<std::mutex> lock(ses->mu);
 
     spk_engine * eng = ses->eng;
+    // One decode at a time per engine: the runtime context is shared by every
+    // session, and llama_decode() must not be entered twice concurrently.
+    // Lock order is session -> engine everywhere, never the other way round.
+    std::lock_guard<std::mutex> gen(eng->gen_mu);
     if (eng->text.ctx == nullptr) {
         return SPK_ERR_CONTEXT;
     }
@@ -407,7 +421,7 @@ spk_status spk_session_generate(spk_session * ses, const spk_gen_params * params
         if (prompt.empty()) {
             return SPK_ERR_INTERNAL;
         }
-        spk_memory_clear(spk_get_memory(eng->text.ctx), false);
+        spk_memory_seq_rm(spk_get_memory(eng->text.ctx), ses->seq, -1, -1);
         ses->n_past = 0;
         ses->tokens.clear();
 
@@ -444,7 +458,7 @@ spk_status spk_session_generate(spk_session * ses, const spk_gen_params * params
             memcmp(toks.data(), ses->prefix_tokens.data(),
                    ses->prefix_tokens.size() * sizeof(spk_token_id)) == 0) {
             const spk_pos plen = (spk_pos) ses->prefix_tokens.size();
-            if (spk_state_write(eng->text.ctx, ses->prefix.data(), ses->prefix.size(), 0) ==
+            if (spk_state_write(eng->text.ctx, ses->prefix.data(), ses->prefix.size(), ses->seq) ==
                 ses->prefix.size()) {
                 n_past = plen;
                 from   = ses->prefix_tokens.size();
@@ -454,7 +468,7 @@ spk_status spk_session_generate(spk_session * ses, const spk_gen_params * params
         }
 
         if (n_past == 0) {
-            spk_memory_clear(spk_get_memory(eng->text.ctx), false);
+            spk_memory_seq_rm(spk_get_memory(eng->text.ctx), ses->seq, -1, -1);
             ses->tokens.clear();
             ses->n_past = 0;
         }
@@ -493,6 +507,7 @@ spk_status spk_session_generate(spk_session * ses, const spk_gen_params * params
     spk_batch one = spk_batch_init(1, 0, 1);
     one.n_tokens = 1;
     if (one.token == nullptr) {
+        spk_batch_free(one);
         return SPK_ERR_INTERNAL;
     }
 
@@ -556,7 +571,7 @@ spk_status spk_session_generate(spk_session * ses, const spk_gen_params * params
         one.token[0]    = id;
         one.pos[0]      = ses->n_past;
         one.n_seq_id[0] = 1;
-        one.seq_id[0][0] = 0;
+        one.seq_id[0][0] = ses->seq;
         one.logits[0]   = 1;
         const int32_t rc = spk_decode(eng->text.ctx, one);
         if (rc != 0) {
@@ -601,12 +616,12 @@ spk_status spk_session_checkpoint(spk_session * ses) {
     }
     std::lock_guard<std::mutex> lock(ses->mu);
     spk_engine * eng = ses->eng;
-    const size_t need = spk_state_size(eng->text.ctx, 0);
+    const size_t need = spk_state_size(eng->text.ctx, ses->seq);
     if (need == 0) {
         return SPK_ERR_UNSUPPORTED;
     }
     ses->checkpoint.assign(need, 0);
-    if (spk_state_read(eng->text.ctx, ses->checkpoint.data(), ses->checkpoint.size(), 0) != need) {
+    if (spk_state_read(eng->text.ctx, ses->checkpoint.data(), ses->checkpoint.size(), ses->seq) != need) {
         ses->checkpoint.clear();
         return SPK_ERR_INTERNAL;
     }
@@ -623,11 +638,14 @@ spk_status spk_session_restore(spk_session * ses) {
         return SPK_ERR_NOT_FOUND;
     }
     if (spk_state_write(ses->eng->text.ctx, ses->checkpoint.data(),
-                        ses->checkpoint.size(), 0) != ses->checkpoint.size()) {
+                        ses->checkpoint.size(), ses->seq) != ses->checkpoint.size()) {
         return SPK_ERR_INTERNAL;
     }
     ses->n_past = ses->checkpoint_len;
-    ses->tokens.resize((size_t) ses->checkpoint_len > ses->tokens.size()
-                       ? ses->tokens.size() : (size_t) ses->checkpoint_len);
+    // Rewinding must shorten the token list, never keep a longer one: the extra
+    // tokens would be replayed against a KV cache that no longer contains them.
+    if ((spk_pos) ses->tokens.size() > ses->checkpoint_len) {
+        ses->tokens.resize((size_t) ses->checkpoint_len);
+    }
     return SPK_OK;
 }

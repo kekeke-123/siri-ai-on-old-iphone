@@ -188,8 +188,16 @@ static spk_context_params spk_make_ctx_params(spk_engine * eng) {
     cp.n_threads       = eng->cfg.n_threads > 0 ? eng->cfg.n_threads : spk_auto_threads();
     cp.n_threads_batch = cp.n_threads;
 
-    cp.n_seq_max  = 1;
-    cp.flash_attn_type = SPK_FLASH_DISABLED;
+    // One sequence per session. Sessions used to share sequence 0, which meant
+    // two open conversations silently overwrote each other's KV cache and
+    // warmup() wiped the other session's prefix.
+    cp.n_seq_max  = 8;
+
+    // AUTO lets the runtime decide: it enables flash attention where the
+    // architecture supports it and quietly skips it where it does not. The old
+    // DISABLED default was blamed for a decode failure that turned out to be
+    // an empty batch, so it was costing speed for nothing.
+    cp.flash_attn_type = SPK_FLASH_AUTO;
 
     // K/V stay f16 and flash attention stays off. Q8 K/V + FA is what made the
     // first decode fail on device (-1 at pos 0) while the exact same weights
@@ -406,6 +414,10 @@ void spk_engine_destroy(spk_engine * eng) {
         return;
     }
     eng->cancel.store(true);
+    // Generation holds gen_mu for its whole duration, so this waits for the
+    // in-flight decode to unwind before the context it is using disappears.
+    // Without it, destroy during a generation was a use-after-free.
+    std::lock_guard<std::mutex> gen(eng->gen_mu);
     {
         std::lock_guard<std::mutex> lock(eng->mu);
         spk_slot_unload(eng->translate);
@@ -413,6 +425,54 @@ void spk_engine_destroy(spk_engine * eng) {
         spk_slot_unload(eng->text);
     }
     delete eng;
+}
+
+int32_t spk_engine_alloc_seq(spk_engine * eng) {
+    if (eng == nullptr) {
+        return -1;
+    }
+    std::lock_guard<std::mutex> lock(eng->mu);
+    const int32_t limit = eng->n_seq_max < 8 ? eng->n_seq_max : 8;
+    for (int32_t i = 0; i < limit; ++i) {
+        if (!eng->seq_used[i]) {
+            eng->seq_used[i] = true;
+            return i;
+        }
+    }
+    return -1;
+}
+
+void spk_engine_free_seq(spk_engine * eng, int32_t seq) {
+    if (eng == nullptr || seq < 0 || seq >= 8) {
+        return;
+    }
+    std::lock_guard<std::mutex> lock(eng->mu);
+    if (!eng->seq_used[seq]) {
+        return;
+    }
+    // Drop this sequence's KV before the slot can be handed to another session;
+    // otherwise the next owner starts on top of someone else's tokens.
+    if (eng->text.ctx != nullptr) {
+        spk_memory_seq_rm(spk_get_memory(eng->text.ctx), seq, -1, -1);
+    }
+    eng->seq_used[seq] = false;
+}
+
+int32_t spk_effective_batch(spk_engine * eng) {
+    if (eng == nullptr) {
+        return 128;
+    }
+    int32_t nb = eng->cfg.n_batch > 0 ? eng->cfg.n_batch : 256;
+    if (eng->text.ctx != nullptr) {
+        const int32_t n_ctx = (int32_t) spk_n_ctx(eng->text.ctx);
+        if (n_ctx > 0 && nb > n_ctx) {
+            nb = n_ctx;
+        }
+    }
+    if (nb < 16) {
+        nb = 16;
+    }
+    return nb;
 }
 
 const char * spk_engine_last_error(const spk_engine * eng) {
@@ -546,13 +606,20 @@ spk_status spk_engine_handle_memory_warning(spk_engine * eng) {
     if (eng == nullptr) {
         return SPK_ERR_INVALID_ARGUMENT;
     }
-    if (!eng->mu.try_lock()) {
+    // A generation owns gen_mu and may be reading the vision/translate slots,
+    // so unloading them now would pull the ground out from under it.
+    if (!eng->gen_mu.try_lock()) {
         // busy generating, the OS will warn again
+        return SPK_OK;
+    }
+    if (!eng->mu.try_lock()) {
+        eng->gen_mu.unlock();
         return SPK_OK;
     }
     spk_slot_unload(eng->translate);
     spk_slot_unload(eng->vision);
     eng->mu.unlock();
+    eng->gen_mu.unlock();
     return SPK_OK;
 }
 
