@@ -35,9 +35,14 @@ struct SettingsView: View {
                 }
 
                 Section(header: Text("推理后端"),
-                        footer: Text("Metal 默认关闭：A14 上 Qwen3.5 的混合层在 GPU 上第一次解码就报 -1，同一份权重走 CPU 正常。开启后要重新加载模型才生效。")) {
-                    Toggle("Metal 加速（实验）", isOn: Binding(
-                        get: { UserDefaults.standard.bool(forKey: "spk.metal.enabled") },
+                        footer: Text("默认走 Metal（权重在 GPU，K/V 与注意力留在 CPU）。若某个模型在 GPU 上仍解码失败，关掉开关重新加载即可退回 CPU。")) {
+                    Toggle("Metal 加速", isOn: Binding(
+                        get: {
+                            let d = UserDefaults.standard
+                            return d.object(forKey: "spk.metal.enabled") == nil
+                                ? true
+                                : d.bool(forKey: "spk.metal.enabled")
+                        },
                         set: { UserDefaults.standard.set($0, forKey: "spk.metal.enabled") }
                     ))
                     Button("重新加载当前模型") { model.reload() }

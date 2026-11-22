@@ -24,8 +24,9 @@ set(GGML_RPC               OFF CACHE BOOL "" FORCE)
 
 add_subdirectory("${RUNTIME_DIR}" "${CMAKE_BINARY_DIR}/runtime" EXCLUDE_FROM_ALL)
 
-add_library(spk STATIC
+set(SPK_SOURCES
     src/spk_engine.cpp
+    src/spk_platform.cpp
     src/spk_session.cpp
     src/spk_vision.cpp
     src/spk_translate.cpp
@@ -33,6 +34,16 @@ add_library(spk STATIC
     src/spk_guard.cpp
     src/spk_sampler.cpp
 )
+
+# On Windows a host usually wants a DLL it can LoadLibrary at runtime next to
+# an .h it compiles against, so the same sources can produce either artifact.
+option(SPK_LINK_SHARED "Build the kernel as a DLL on Windows (spk.dll + spk.lib)" OFF)
+if(SPK_LINK_SHARED AND WIN32)
+    add_library(spk SHARED ${SPK_SOURCES})
+    set_target_properties(spk PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+else()
+    add_library(spk STATIC ${SPK_SOURCES})
+endif()
 
 target_include_directories(spk
     PUBLIC
@@ -46,15 +57,19 @@ target_include_directories(spk
 )
 
 target_compile_features(spk PRIVATE cxx_std_17)
-target_compile_options(spk PRIVATE -fvisibility=hidden -fno-exceptions)
+if(NOT MSVC)
+    target_compile_options(spk PRIVATE -fvisibility=hidden -fno-exceptions)
+endif()
 
 target_link_libraries(spk PUBLIC llama mtmd)
 
 # The public ABI is C, so the static library carries no C++ symbols.
-set_target_properties(spk PROPERTIES
-    CXX_VISIBILITY_PRESET hidden
-    VISIBILITY_INLINES_HIDDEN YES
-)
+if(NOT MSVC)
+    set_target_properties(spk PROPERTIES
+        CXX_VISIBILITY_PRESET hidden
+        VISIBILITY_INLINES_HIDDEN YES
+    )
+endif()
 
 # Headless smoke test, built only on request so the iOS archive stays clean.
 option(SPK_BUILD_SELFTEST "Build the spk_selftest CLI" OFF)
@@ -62,4 +77,14 @@ if(SPK_BUILD_SELFTEST)
     add_executable(spk_selftest tools/spk_selftest.cpp)
     target_compile_features(spk_selftest PRIVATE cxx_std_17)
     target_link_libraries(spk_selftest PRIVATE spk)
+endif()
+
+# Command line host: spk.exe on Windows, spk on POSIX. Static by default so the
+# binary can be dropped on a machine with nothing else installed.
+option(SPK_BUILD_CLI "Build spk_cli (the command line chat tool)" OFF)
+if(SPK_BUILD_CLI)
+    add_executable(spk_cli tools/spk_cli.cpp)
+    target_compile_features(spk_cli PRIVATE cxx_std_17)
+    target_link_libraries(spk_cli PRIVATE spk)
+    set_target_properties(spk_cli PROPERTIES OUTPUT_NAME "spk")
 endif()
