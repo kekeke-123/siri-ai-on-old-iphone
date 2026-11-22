@@ -1,0 +1,26 @@
+diff --git a/kernel/src/spk_core.h b/kernel/src/spk_core.h
+--- a/kernel/src/spk_core.h
++++ b/kernel/src/spk_core.h
+@@ -1,9 +1,9 @@
+ /*
+  * spk_core.h - the ONLY translation unit of this kernel that is allowed to
+  * mention the upstream runtime's identifiers.
+  *
+- * Everything else in kernel/src speaks spk_* only. This keeps the Siri Plus
+- * Kernel brand-clean at the source level while still honouring the MIT
++ * Everything else in kernel/src speaks spk_* only. This keeps the LLAI
++ * Kernel brand-clean at the source level while still honouring the MIT
+  * attribution of the runtime it is built on (see third_party/NOTICE.md).
+  *
+  * If you are adding a new capability: add an alias here, never include the
+diff --git a/app/Sources/SettingsView.swift b/app/Sources/SettingsView.swift
+--- a/app/Sources/SettingsView.swift
++++ b/app/Sources/SettingsView.swift
+@@ -183,6 +183,6 @@
+     }
+ 
+     private func kernelVersion() -> String {
+-        "1.4.2"
++        "LLAI 1.0.0"
+     }
+ }
