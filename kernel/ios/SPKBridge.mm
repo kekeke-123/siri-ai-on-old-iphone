@@ -199,13 +199,10 @@ static NSError * spk_error(spk_status st, NSString * message) {
 
         spk_gen_params gp;
         memset(&gp, 0, sizeof(gp));
+        // Every knob left at 0 means "the kernel's default for this
+        // architecture". The host no longer overrides Qwen's tuned profile
+        // with generic numbers.
         gp.max_tokens     = 256;
-        gp.top_k          = 40;
-        gp.top_p          = 0.95f;
-        gp.min_p          = 0.05f;
-        gp.temperature    = 0.7f;
-        gp.repeat_penalty = 1.1f;
-        gp.repeat_last_n  = 64;
 
         st = spk_session_generate(_session, &gp, spk_sink_cb, &sink);
 

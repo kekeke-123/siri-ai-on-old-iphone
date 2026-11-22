@@ -2,6 +2,16 @@ import Foundation
 import Combine
 import AVFoundation
 
+/// Kept for the voice pipeline (speaking/listening drive the toolbar state).
+/// The animated blob that used to render this was removed: it was decoration,
+/// not information.
+enum OrbState {
+    case idle
+    case listening
+    case thinking
+    case speaking
+}
+
 struct ChatMessage: Identifiable {
     enum Role: String {
         case user, assistant
@@ -350,6 +360,19 @@ final class AssistantModel: ObservableObject {
     var remoteConfig: RemoteBackend.Config {
         get { RemoteBackend.shared.config }
         set { RemoteBackend.shared.config = newValue }
+    }
+
+    /// Drops the whole conversation, including the kernel's KV session.
+    /// Nothing is inserted into the transcript: a new chat starts empty.
+    func startNewConversation() {
+        bridge.resetConversation()
+        flushWork?.cancel()
+        flushWork = nil
+        pendingPiece = ""
+        messages.removeAll()
+        streaming = ""
+        thinking = false
+        orb = .idle
     }
 
     func clear() {
