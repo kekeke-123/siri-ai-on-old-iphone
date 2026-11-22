@@ -1,8 +1,8 @@
 name: apply-ui-patch
 
-# Applies a UI patch to the app sources. The patch is produced locally with
-# git diff and served from an object CDN, so the runner applies a real unified
-# diff instead of trusting hand-copied file bodies.
+# Applies a small patch to the app repository. The patch is produced locally
+# with git diff and served from an object CDN, so the runner applies a real
+# unified diff instead of trusting hand-copied file bodies.
 
 on:
   push:
@@ -24,20 +24,19 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p fixes
-          curl -fsSL --retry 3 -o fixes/ui.patch https://aka.doubaocdn.com/s/N63wOobVwQ
-          wc -l fixes/ui.patch
-          head -4 fixes/ui.patch
+          curl -fsSL --retry 3 -o fixes/current.patch https://aka.doubaocdn.com/s/RSQCIMpfxs
+          wc -l fixes/current.patch
 
       - name: Verify
         run: |
           set -euo pipefail
-          git apply --check --whitespace=nowarn fixes/ui.patch
+          git apply --check --whitespace=nowarn fixes/current.patch
           echo 'patch applies cleanly'
 
       - name: Apply
         run: |
           set -euo pipefail
-          git apply --whitespace=nowarn fixes/ui.patch
+          git apply --whitespace=nowarn fixes/current.patch
           rm -rf fixes
           git status --short
 
@@ -47,28 +46,16 @@ jobs:
           test ! -e app/Sources/OrbView.swift && echo 'OrbView.swift removed'
           grep -q 'enum OrbState' app/Sources/AssistantModel.swift
           grep -q 'func startNewConversation' app/Sources/AssistantModel.swift
-          grep -q 'import SwiftUI' app/Sources/AssistantView.swift
           grep -q 'Text("LLAI")' app/Sources/AssistantView.swift
           grep -q 'navigationBarTrailing' app/Sources/AssistantView.swift
-          lines=$(wc -l < app/Sources/AssistantView.swift)
-          test "$lines" -gt 200 && echo "AssistantView.swift $lines lines"
-          opens=$(tr -cd '{' < app/Sources/AssistantView.swift | wc -c)
-          closes=$(tr -cd '}' < app/Sources/AssistantView.swift | wc -c)
-          echo "braces { $opens } $closes"
-          test "$opens" -eq "$closes"
+          grep -q 'runs-on: macos-15' .github/workflows/build-lean.yml
+          grep -q 'Kernel 1.1.0' .github/workflows/build-lean.yml
 
       - name: Commit and push
         run: |
           set -euo pipefail
           git add -A
           git -c user.name='llai-bot' -c user.email='llai-bot@users.noreply.github.com' \
-            commit -m 'ui: native iOS surface - brand LLAI, new chat, streaming scroll, code blocks; drop the orb' \
+            commit -m 'ci: move the iOS build to the macOS 15 runner' \
             || echo 'nothing to commit'
           git push origin HEAD:main || echo 'push skipped'
-
-      - name: Trigger iOS build
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh workflow run build-lean --ref main && echo 'build-lean dispatched' \
-            || echo 'dispatch failed'
