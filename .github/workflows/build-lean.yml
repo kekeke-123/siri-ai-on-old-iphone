@@ -6,6 +6,8 @@ name: build-lean
 # background import) and without the widget extension.
 # Import round 3: system document picker in copy mode, Files-app open-in,
 # Documents/Models created at launch and auto-scanned.
+# Round 4: CPU backend by default, f16 K/V, no flash attention, llama log tail
+# attached to decode errors.
 
 on:
   push:
