@@ -1,0 +1,42 @@
+name: rebrand-llai
+
+# One-shot rebrand to LLAI 1.0.0. Runs on the runner because the agent can only
+# write plain files through its connector, not rewrite a whole tree by hand.
+# Text-only on purpose: the spk_ C prefix is the published ABI.
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'scripts/rebrand-llai.sh'
+      - '.github/workflows/rebrand.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rebrand:
+    if: github.repository == 'kekeke-123/siri-ai-on-old-iphone'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply rebrand
+        shell: bash
+        run: bash ./scripts/rebrand-llai.sh
+
+      - name: Commit if anything changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "already rebranded"
+            exit 0
+          fi
+          git add -A
+          git -c user.name='spk-bot' -c user.email='spk-bot@users.noreply.github.com' \
+              commit -m "kernel: rename to LLAI, cut 1.0.0"
+          git push origin HEAD:main
