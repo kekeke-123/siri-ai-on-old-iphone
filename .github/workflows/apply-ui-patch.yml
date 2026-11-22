@@ -1,0 +1,88 @@
+name: apply-ui-patch
+
+# Applies a UI patch to the app sources. The patch is produced locally with
+# git diff and served from an object CDN, so the runner applies a real unified
+# diff instead of trusting hand-copied file bodies.
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-ui-patch.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch patch
+        run: |
+          set -euo pipefail
+          mkdir -p fixes
+          curl -fsSL --retry 3 -o fixes/ui.patch https://aka.doubaocdn.com/s/N63wOobVwQ
+          wc -l fixes/ui.patch
+          head -4 fixes/ui.patch
+
+      - name: Verify
+        run: |
+          set -euo pipefail
+          git apply --check --whitespace=nowarn fixes/ui.patch
+          echo 'patch applies cleanly'
+
+      - name: Apply
+        run: |
+          set -euo pipefail
+          git apply --whitespace=nowarn fixes/ui.patch
+          rm -rf fixes
+          git status --short
+
+      - name: Sanity gate
+        run: |
+          set -euo pipefail
+          # the orb is gone, its state enum moved into AssistantModel
+          test ! -e app/Sources/OrbView.swift && echo 'OrbView.swift removed'
+          grep -q 'enum OrbState' app/Sources/AssistantModel.swift
+          grep -q 'func startNewConversation' app/Sources/AssistantModel.swift
+          grep -q 'import SwiftUI' app/Sources/AssistantView.swift
+          grep -c 'Text("LLAI")' app/Sources/AssistantView.swift
+          # every opened brace inside the rewritten view must close
+          python3 - <<'PY'
+          import sys
+          p = 'app/Sources/AssistantView.swift'
+          s = open(p, encoding='utf-8').read()
+          depth = 0
+          in_str = False
+          esc = False
+          for ch in s:
+              if in_str:
+                  if esc: esc = False
+                  elif ch == '\\': esc = True
+                  elif ch == '"': in_str = False
+                  continue
+              if ch == '"': in_str = True
+              elif ch == '{': depth += 1
+              elif ch == '}': depth -= 1
+          print('brace depth', depth)
+          sys.exit(0 if depth == 0 else 1)
+          PY
+
+      - name: Commit and push
+        run: |
+          set -euo pipefail
+          git add -A
+          git -c user.name='llai-bot' -c user.email='llai-bot@users.noreply.github.com' \
+            commit -m 'ui: native iOS surface - brand LLAI, new chat, streaming scroll, code blocks; drop the orb' \
+            || echo 'nothing to commit'
+          git push origin HEAD:main || echo 'push skipped'
+
+      - name: Trigger iOS build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run build-lean --ref main && echo 'build-lean dispatched' \
+            || echo 'dispatch failed'
