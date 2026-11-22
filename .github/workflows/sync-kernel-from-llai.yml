@@ -1,0 +1,52 @@
+name: sync-kernel-from-llai
+
+# The kernel lives in two places: this app repository (kernel/) and the
+# standalone LLAI-Kernel repository. This pulls the canonical kernel back into
+# the app so an iOS build always compiles the same sources the library ships.
+
+on:
+  push:
+    paths:
+      - '.github/workflows/sync-kernel-from-llai.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pull kernel sources
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/kekeke-123/LLAI-Kernel /tmp/up
+          rm -rf kernel/src kernel/include
+          cp -R /tmp/up/src kernel/src
+          cp -R /tmp/up/include kernel/include
+          if [ -d /tmp/up/tests ]; then
+            mkdir -p kernel/tests
+            cp -R /tmp/up/tests/. kernel/tests/
+          fi
+          grep -n 'SPK_VERSION_STRING' kernel/include/spk/spk.h
+          grep -c 'n_tokens' kernel/src/spk_session.cpp
+
+      - name: Commit
+        run: |
+          set -euo pipefail
+          git add -A
+          git status --short | head -40
+          git -c user.name='llai-bot' -c user.email='llai-bot@users.noreply.github.com' \
+            commit -m 'kernel: sync LLAI 1.1.0 from the standalone kernel repo' \
+            || echo 'nothing to commit'
+          git push origin HEAD:main || echo 'push skipped'
+
+      - name: Trigger iOS build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run build-lean --ref main && echo 'build-lean dispatched' \
+            || echo 'dispatch failed'
