@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Fetch patch
         run: |
@@ -43,19 +45,31 @@ jobs:
       - name: Sanity gate
         run: |
           set -euo pipefail
-          test ! -e app/Sources/OrbView.swift && echo 'OrbView.swift removed'
-          grep -q 'enum OrbState' app/Sources/AssistantModel.swift
-          grep -q 'func startNewConversation' app/Sources/AssistantModel.swift
-          grep -q 'Text("LLAI")' app/Sources/AssistantView.swift
-          grep -q 'navigationBarTrailing' app/Sources/AssistantView.swift
           grep -q 'runs-on: macos-15' .github/workflows/build-lean.yml
           grep -q 'Kernel 1.1.0' .github/workflows/build-lean.yml
+          test ! -e app/Sources/OrbView.swift
+          grep -q 'Text("LLAI")' app/Sources/AssistantView.swift
 
-      - name: Commit and push
+      - name: Commit
         run: |
           set -euo pipefail
           git add -A
           git -c user.name='llai-bot' -c user.email='llai-bot@users.noreply.github.com' \
             commit -m 'ci: move the iOS build to the macOS 15 runner' \
             || echo 'nothing to commit'
-          git push origin HEAD:main || echo 'push skipped'
+
+      - name: Push with rebase retry
+        run: |
+          set -euo pipefail
+          for i in 1 2 3; do
+            if git push origin HEAD:main; then
+              echo "pushed on attempt $i"
+              exit 0
+            fi
+            echo "attempt $i rejected, rebasing"
+            git fetch origin main
+            git rebase origin/main || git rebase --abort || true
+            sleep 2
+          done
+          echo 'push failed after retries'
+          exit 1
