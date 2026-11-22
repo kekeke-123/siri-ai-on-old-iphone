@@ -1,0 +1,35 @@
+diff --git a/kernel/CMakeLists.txt b/kernel/CMakeLists.txt
+index df01bfe..541d87c 100644
+--- a/kernel/CMakeLists.txt
++++ b/kernel/CMakeLists.txt
+@@ -88,3 +88,30 @@ if(SPK_BUILD_CLI)
+     target_link_libraries(spk_cli PRIVATE spk)
+     set_target_properties(spk_cli PROPERTIES OUTPUT_NAME "spk")
+ endif()
++
++# The C++ wrapper in include/llai is header-only; this target is the proof it
++# compiles standalone and the smallest example to copy from.
++option(SPK_BUILD_EXAMPLES "Build the C++ API example (llai_chat)" OFF)
++if(SPK_BUILD_EXAMPLES)
++    add_executable(llai_chat examples/llai_chat.cpp)
++    target_compile_features(llai_chat PRIVATE cxx_std_17)
++    target_link_libraries(llai_chat PRIVATE spk)
++endif()
++
++# Drop-in layout for a host that links the kernel: the C ABI under include/spk,
++# the C++ wrapper under include/llai, the library in lib.
++include(GNUInstallDirs)
++install(TARGETS spk
++    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
++    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
++)
++install(FILES
++    include/spk/spk.h
++    include/spk/spk_platform.h
++    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/spk
++)
++install(FILES
++    include/llai/llai.hpp
++    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/llai
++)

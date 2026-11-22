@@ -1,0 +1,62 @@
+diff --git a/kernel/examples/llai_chat.cpp b/kernel/examples/llai_chat.cpp
+new file mode 100644
+index 0000000..3ec7b18
+--- /dev/null
++++ b/kernel/examples/llai_chat.cpp
+@@ -0,0 +1,56 @@
++/*
++ * llai_chat - the C++ API in its smallest useful form.
++ *
++ * Same kernel as the iOS app and the CLI, but through the RAII wrapper in
++ * llai/llai.hpp. Build it on any host: this is the file a Windows user opens
++ * when they want to wire the kernel into their own program.
++ *
++ * SPDX-License-Identifier: MIT
++ */
++#include "llai/llai.hpp"
++
++#include <cstdio>
++#include <string>
++
++int main(int argc, char ** argv) {
++    if (argc < 2) {
++        std::printf("usage: llai_chat <model.gguf> [prompt]\n");
++        return 2;
++    }
++
++    llai::Config cfg;
++    cfg.model_path = argv[1];
++
++    std::string error;
++    auto engine = llai::Engine::open(cfg, &error);
++    if (!engine) {
++        std::printf("open failed: %s\n", error.c_str());
++        return 1;
++    }
++
++    std::printf("kernel %s | %s\n", llai::version(), engine.info_line().c_str());
++
++    llai::Session session(engine);
++    if (!session) {
++        std::printf("session failed: %s\n", engine.last_error().c_str());
++        return 1;
++    }
++
++    llai::Params params;
++    params.max_tokens = 64;
++
++    std::string prompt = argc >= 3 ? argv[2] : "用一句话介绍你自己";
++
++    session.stream(prompt, params, [](std::string_view piece, bool last) {
++        std::fputs(piece.data(), stdout);
++        std::fflush(stdout);
++        if (last) {
++            std::fputs("\n", stdout);
++        }
++    });
++
++    auto m = engine.metrics();
++    std::printf("[%d tok | ttft %.0f ms | %.1f tok/s]\n",
++                (int) m.n_decode_tokens, m.ttft_ms, m.decode_tok_s);
++    return 0;
++}
