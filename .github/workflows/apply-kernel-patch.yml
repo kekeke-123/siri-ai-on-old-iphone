@@ -1,12 +1,13 @@
 name: apply-kernel-patch
 
 # The maintenance agent cannot push with git credentials; it can only write
-# plain files through its GitHub connector. Multi-line source changes therefore
-# land as a unified diff and are applied here, on the runner, where a real
-# GITHUB_TOKEN exists.
+# plain files through its GitHub connector. Multi-line source changes land as
+# unified diffs and are applied here, where a real GITHUB_TOKEN exists.
 #
-# Contract: drop patches/0004-kernel-qwen35.patch plus a .kernel-patch-pending
-# marker in a commit. This job applies, commits and removes the marker.
+# Contract: drop patches/0004-*.patch plus a .kernel-patch-pending marker.
+# A patch that does not apply is moved to patches/failed/ and reported in
+# CI_PATCH.md instead of aborting the whole batch - one bad hunk must not block
+# the good ones again.
 
 on:
   push:
@@ -27,23 +28,41 @@ jobs:
           fetch-depth: 0
 
       - name: Apply pending patches
+        shell: bash
         run: |
-          set -euo pipefail
-          applied=0
+          set -uo pipefail
+          ok=0
+          bad=""
+          mkdir -p patches/failed
           for p in patches/0004-*.patch; do
             [ -e "$p" ] || continue
             echo "== applying $p"
-            git apply --whitespace=nowarn "$p"
-            rm -f "$p"
-            applied=$((applied + 1))
+            if git apply --whitespace=nowarn "$p"; then
+              rm -f "$p"
+              ok=$((ok + 1))
+            else
+              echo "FAILED $p"
+              bad="$bad$p`n"
+              mv "$p" "patches/failed/" || rm -f "$p"
+            fi
           done
           rm -f .kernel-patch-pending
-          echo "applied=$applied"
-          if [ "$applied" -eq 0 ]; then
-            echo "nothing to apply"
-            exit 0
+          echo "applied=$ok"
+          if [ "$ok" -eq 0 ]; then
+            echo "nothing applied"
           fi
+          {
+            echo "# patch apply report"
+            echo "run: $GITHUB_RUN_ID @ $GITHUB_SHA"
+            echo "applied: $ok"
+            if [ -n "$bad" ]; then
+              echo "failed:"
+              echo "```"
+              echo "$bad"
+              echo "```"
+            fi
+          } > CI_PATCH.md
           git add -A
           git -c user.name='spk-bot' -c user.email='spk-bot@users.noreply.github.com' \
-              commit -m "kernel: qwen35 arch, qwen sampler defaults, chatml fallback, selftest"
-          git push origin HEAD:main
+              commit -m "kernel: apply pending patches ($ok ok)" || echo "nothing to commit"
+          git push origin HEAD:main || echo "push skipped"
