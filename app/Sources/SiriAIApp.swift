@@ -25,6 +25,13 @@ struct SiriAIApp: App {
     }
 
     private func handle(_ url: URL) {
+        // Files app / share sheet "open in SiriAI" delivers a file URL.
+        // The payload is copied into the sandbox and loaded, same path as the
+        // in-app picker, so both entry points behave identically.
+        if url.isFileURL {
+            AssistantModel.shared.importModel(url, mmproj: nil)
+            return
+        }
         guard url.scheme == "siri-ai" else { return }
         let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
         let query = components?.queryItems?.first(where: { $0.name == "q" })?.value

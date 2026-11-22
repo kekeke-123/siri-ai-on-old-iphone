@@ -45,12 +45,14 @@ struct AssistantView: View {
         .sheet(isPresented: $showSettings) {
             SettingsView(model: model, voice: voice)
         }
-        .fileImporter(isPresented: $showModelPicker,
-                      allowedContentTypes: [gguf],
-                      allowsMultipleSelection: false) { result in
-            if case .success(let urls) = result, let url = urls.first {
+        .fullScreenCover(isPresented: $showModelPicker) {
+            ModelDocumentPicker(types: [gguf], onPick: { url in
+                showModelPicker = false
                 model.importModel(url, mmproj: nil)
-            }
+            }, onCancel: {
+                showModelPicker = false
+            })
+            .ignoresSafeArea()
         }
         .fileImporter(isPresented: $showImagePicker,
                       allowedContentTypes: [.image],
@@ -64,7 +66,8 @@ struct AssistantView: View {
             if let pending = Handoff.shared.take() {
                 model.send(pending)
             }
-            if !model.ready && ModelStore.existing().isEmpty {
+            model.refreshLocalModels()
+            if !model.ready && model.localModels.isEmpty {
                 showSettings = true
             }
         }

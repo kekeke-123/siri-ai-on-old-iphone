@@ -7,10 +7,13 @@ struct SettingsView: View {
 
     @Environment(\.presentationMode) private var presentation
 
-    @State private var showModel = false
-    @State private var showMmproj = false
-    @State private var showTranslate = false
+    @State private var picking: PickTarget?
     @State private var pickedMmproj: URL?
+
+    private enum PickTarget: String, Identifiable {
+        case model, mmproj, translate
+        var id: String { rawValue }
+    }
 
     @State private var apiBase = ""
     @State private var apiKey = ""
@@ -31,11 +34,35 @@ struct SettingsView: View {
                     }
                 }
 
+                Section(header: Text("Models 文件夹（直接拖进去）"),
+                        footer: Text("路径：「文件」App → 我的 iPhone → \(Bundle.main.displayName) → Models。把 .gguf 拖进去，回到 App 会自动识别并加载。")) {
+                    if model.localModels.isEmpty {
+                        Text("还没有文件").font(.system(size: 12)).foregroundColor(.secondary)
+                    } else {
+                        ForEach(model.localModels, id: \.self) { url in
+                            Button {
+                                model.loadLocal(url)
+                            } label: {
+                                HStack {
+                                    Text(url.lastPathComponent)
+                                        .font(.system(size: 12, design: .monospaced))
+                                        .lineLimit(1)
+                                    Spacer()
+                                    Text(sizeText(url))
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                    }
+                    Button("刷新列表") { model.refreshLocalModels() }
+                }
+
                 Section(header: Text("导入 / 自定义")) {
-                    Button("导入 GGUF 模型") { showModel = true }
-                    Button("导入视觉投影 mmproj") { showMmproj = true }
-                    Button("导入翻译专用模型") { showTranslate = true }
-                    Text("导入后自动切到「自定义」，覆盖内置权重；文件会拷进 App 沙盒的 Models 目录。")
+                    Button("导入 GGUF 模型") { picking = .model }
+                    Button("导入视觉投影 mmproj") { picking = .mmproj }
+                    Button("导入翻译专用模型") { picking = .translate }
+                    Text("导入后自动切到「自定义」，覆盖内置权重；文件会拷进 App 沙盒的 Models 目录。\n也可以在「文件」App 里长按 gguf → 分享 → 更多 → SiriAI，直接推进来。")
                         .font(.system(size: 11)).foregroundColor(.secondary)
                 }
 
@@ -93,20 +120,22 @@ struct SettingsView: View {
                 apiKey = cfg.apiKey
                 apiModel = cfg.model
             }
-            .fileImporter(isPresented: $showModel, allowedContentTypes: [ggufType], allowsMultipleSelection: false) { r in
-                if case .success(let urls) = r, let u = urls.first {
-                    model.importModel(u, mmproj: pickedMmproj)
-                }
-            }
-            .fileImporter(isPresented: $showMmproj, allowedContentTypes: [ggufType], allowsMultipleSelection: false) { r in
-                if case .success(let urls) = r, let u = urls.first {
-                    pickedMmproj = try? ModelStore.importFile(u)
-                }
-            }
-            .fileImporter(isPresented: $showTranslate, allowedContentTypes: [ggufType], allowsMultipleSelection: false) { r in
-                if case .success(let urls) = r, let u = urls.first {
-                    model.attach(url: u, role: 2)
-                }
+            .fullScreenCover(item: $picking) { target in
+                ModelDocumentPicker(types: [ggufType], onPick: { url in
+                    let kind = target
+                    picking = nil
+                    switch kind {
+                    case .model:
+                        model.importModel(url, mmproj: pickedMmproj)
+                    case .mmproj:
+                        pickedMmproj = try? ModelStore.importFile(url)
+                    case .translate:
+                        model.attach(url: url, role: 2)
+                    }
+                }, onCancel: {
+                    picking = nil
+                })
+                .ignoresSafeArea()
             }
         }
     }
@@ -132,7 +161,22 @@ struct SettingsView: View {
         }
     }
 
+    private func sizeText(_ url: URL) -> String {
+        let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
+        let bytes = (attrs?[.size] as? NSNumber)?.int64Value ?? 0
+        let mb = Double(bytes) / 1_048_576
+        return mb >= 1024 ? String(format: "%.1f GB", mb / 1024) : String(format: "%.0f MB", mb)
+    }
+
     private func kernelVersion() -> String {
         "1.4.2"
+    }
+}
+
+private extension Bundle {
+    var displayName: String {
+        (object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
+            ?? (object(forInfoDictionaryKey: "CFBundleName") as? String)
+            ?? "Siri AI"
     }
 }
