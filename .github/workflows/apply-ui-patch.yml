@@ -44,32 +44,18 @@ jobs:
       - name: Sanity gate
         run: |
           set -euo pipefail
-          # the orb is gone, its state enum moved into AssistantModel
           test ! -e app/Sources/OrbView.swift && echo 'OrbView.swift removed'
           grep -q 'enum OrbState' app/Sources/AssistantModel.swift
           grep -q 'func startNewConversation' app/Sources/AssistantModel.swift
           grep -q 'import SwiftUI' app/Sources/AssistantView.swift
-          grep -c 'Text("LLAI")' app/Sources/AssistantView.swift
-          # every opened brace inside the rewritten view must close
-          python3 - <<'PY'
-          import sys
-          p = 'app/Sources/AssistantView.swift'
-          s = open(p, encoding='utf-8').read()
-          depth = 0
-          in_str = False
-          esc = False
-          for ch in s:
-              if in_str:
-                  if esc: esc = False
-                  elif ch == '\\': esc = True
-                  elif ch == '"': in_str = False
-                  continue
-              if ch == '"': in_str = True
-              elif ch == '{': depth += 1
-              elif ch == '}': depth -= 1
-          print('brace depth', depth)
-          sys.exit(0 if depth == 0 else 1)
-          PY
+          grep -q 'Text("LLAI")' app/Sources/AssistantView.swift
+          grep -q 'navigationBarTrailing' app/Sources/AssistantView.swift
+          lines=$(wc -l < app/Sources/AssistantView.swift)
+          test "$lines" -gt 200 && echo "AssistantView.swift $lines lines"
+          opens=$(tr -cd '{' < app/Sources/AssistantView.swift | wc -c)
+          closes=$(tr -cd '}' < app/Sources/AssistantView.swift | wc -c)
+          echo "braces { $opens } $closes"
+          test "$opens" -eq "$closes"
 
       - name: Commit and push
         run: |
