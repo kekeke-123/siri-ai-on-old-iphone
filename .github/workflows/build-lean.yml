@@ -4,6 +4,8 @@ name: build-lean
 # later from the Files app; the kernel stays identical.
 # Rebuilt with the GGUF import fixes (UTI declaration, data-typed picker,
 # background import) and without the widget extension.
+# Import round 3: system document picker in copy mode, Files-app open-in,
+# Documents/Models created at launch and auto-scanned.
 
 on:
   push:
