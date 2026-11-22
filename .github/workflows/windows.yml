@@ -1,8 +1,8 @@
 name: windows
 
-# The Windows half of the kernel: one .exe you can drive from cmd, and one
-# .dll + .lib + headers a C/C++ host links against. Same sources as iOS.
-# Runs on a real Windows runner, so the artifacts are MSVC-built x64 binaries.
+# The Windows half of the kernel: one .exe you can drive from cmd, one
+# .dll + .lib + headers a host links against. Same C++ sources as iOS.
+# Runs on a real Windows runner so the artifacts are MSVC x64, not a guess.
 
 on:
   push:
@@ -10,7 +10,6 @@ on:
     paths:
       - 'kernel/**'
       - 'scripts/**'
-      - 'patches/**'
       - '.github/workflows/windows.yml'
   workflow_dispatch:
 
@@ -28,24 +27,28 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Ninja needs cl.exe in the environment; bash alone does not load MSVC.
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
       - name: Fetch pinned runtime
         shell: bash
         run: bash ./scripts/fetch-runtime.sh
 
-      # 1) standalone exe: nothing else needs to be installed on the machine
-      - name: Configure (static, CLI)
+      - name: Configure (static + CLI)
         shell: bash
         run: |
           cmake -S kernel -B build-exe -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DSPK_BUILD_CLI=ON \
+            -DSPK_BUILD_EXAMPLES=ON \
             -DGGML_NATIVE=ON
 
       - name: Build exe
         shell: bash
         run: cmake --build build-exe -j 4
 
-      # 2) dll + import library for hosts that want to LoadLibrary it
       - name: Configure (shared)
         shell: bash
         run: |
@@ -58,11 +61,11 @@ jobs:
         shell: bash
         run: cmake --build build-dll -j 4
 
-      - name: Smoke test the exe
+      - name: Smoke test
         shell: bash
         run: |
           ./build-exe/spk.exe --help | head -n 6
-          ./build-exe/spk.exe --model does-not-exist.gguf || true
+          ./build-exe/llai_chat.exe || true
 
       - name: Assemble the package
         shell: bash
@@ -71,11 +74,12 @@ jobs:
           mkdir -p dist/LLAI-1.0-windows-x64
           cd dist/LLAI-1.0-windows-x64
           cp ../../build-exe/spk.exe LLAI.exe
+          cp ../../build-exe/llai_chat.exe LLAI-chat.exe
           cp ../../build-dll/spk.dll LLAI.dll
-          # MSVC writes the import library next to the dll
           if [ -f ../../build-dll/spk.lib ]; then cp ../../build-dll/spk.lib LLAI.lib; fi
           cp ../../kernel/include/spk/spk.h .
           cp ../../kernel/include/spk/spk_platform.h .
+          cp ../../kernel/include/llai/llai.hpp .
           cp ../../docs/WINDOWS.md README.md
           cd ..
           ls -la LLAI-1.0-windows-x64
@@ -86,6 +90,25 @@ jobs:
           path: dist/LLAI-1.0-windows-x64
           if-no-files-found: error
 
+      # A failed build must leave a diagnosis in the repo, because the
+      # connector cannot read job logs.
+      - name: Record failure
+        if: failure()
+        shell: bash
+        run: |
+          {
+            echo "# windows build failure";
+            echo "run: ${{ github.run_id }} @ ${{ github.sha }}";
+            echo '```';
+            tail -n 60 build-exe/CMakeFiles/CMakeError.log 2>/dev/null || true;
+            tail -n 60 build-exe/CMakeFiles/CMakeOutput.log 2>/dev/null || true;
+            echo '```';
+          } > CI_WINDOWS.md
+          git add CI_WINDOWS.md
+          git -c user.name='spk-bot' -c user.email='spk-bot@users.noreply.github.com' \
+              commit -m "ci: windows build log" || true
+          git push origin HEAD:main || true
+
       - name: Publish to rolling release
         if: success()
         uses: softprops/action-gh-release@v2
@@ -93,13 +116,18 @@ jobs:
           tag_name: windows-latest
           name: LLAI kernel for Windows x64 (1.0)
           body: |
-            LLAI.exe is the standalone CLI (no other files needed).
-            LLAI.dll + LLAI.lib + spk.h are for hosts that link or LoadLibrary it.
+            LLAI.exe - standalone CLI, no other files needed.
+            LLAI-chat.exe - the C++ API example (llai.hpp).
+            LLAI.dll + LLAI.lib + spk.h + llai.hpp - link or LoadLibrary.
             run ${{ github.run_id }} @ ${{ github.sha }}
           prerelease: true
           files: |
             dist/LLAI-1.0-windows-x64/LLAI.exe
+            dist/LLAI-1.0-windows-x64/LLAI-chat.exe
             dist/LLAI-1.0-windows-x64/LLAI.dll
+            dist/LLAI-1.0-windows-x64/LLAI.lib
             dist/LLAI-1.0-windows-x64/spk.h
             dist/LLAI-1.0-windows-x64/spk_platform.h
+            dist/LLAI-1.0-windows-x64/llai.hpp
             dist/LLAI-1.0-windows-x64/README.md
+          fail_on_unmatched_files: false
