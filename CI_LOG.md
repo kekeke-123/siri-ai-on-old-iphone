@@ -1,5 +1,5 @@
 # build-lean failure
-run: 44981810974 @ bec11e79c71dbae17def2f2278ea14f86d99c022
+run: 44981845661 @ e49c069ac5a3f35c7e53ee17e2357dd432747996
 
 ```
 /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/kernel/runtime/ggml/src/ggml-blas/libggml-blas.a
@@ -66,8 +66,8 @@ ExecuteExternalTool /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/X
 
 ExecuteExternalTool /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -arch arm64 -isysroot /Applications/Xcode_16.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.5.sdk -x c -c /dev/null
 
-Build description signature: 2d4feafd1a1e9d163c9429486696856c
-Build description path: /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/XCBuildData/2d4feafd1a1e9d163c9429486696856c.xcbuilddata
+Build description signature: 60c88e5e314e79f95a1d1827264385a3
+Build description path: /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/XCBuildData/60c88e5e314e79f95a1d1827264385a3.xcbuilddata
 CreateBuildDirectory /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products
     cd /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/app/SiriAI.xcodeproj
     builtin-create-build-directory /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products
@@ -124,13 +124,13 @@ WriteAuxiliaryFile /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphon
     cd /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/app
     write-file /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/SiriAIWidget-all-non-framework-target-headers.hmap
 
-WriteAuxiliaryFile /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/Objects-normal/arm64/SiriAIWidget.SwiftFileList (in target 'SiriAIWidget' from project 'SiriAI')
-    cd /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/app
-    write-file /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/Objects-normal/arm64/SiriAIWidget.SwiftFileList
-
 WriteAuxiliaryFile /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/Objects-normal/arm64/SiriAIWidget_const_extract_protocols.json (in target 'SiriAIWidget' from project 'SiriAI')
     cd /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/app
     write-file /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/Objects-normal/arm64/SiriAIWidget_const_extract_protocols.json
+
+WriteAuxiliaryFile /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/Objects-normal/arm64/SiriAIWidget.SwiftFileList (in target 'SiriAIWidget' from project 'SiriAI')
+    cd /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/app
+    write-file /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/Objects-normal/arm64/SiriAIWidget.SwiftFileList
 
 WriteAuxiliaryFile /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/Objects-normal/arm64/SiriAIWidget.SwiftConstValuesFileList (in target 'SiriAIWidget' from project 'SiriAI')
     cd /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/app
@@ -241,17 +241,17 @@ SwiftMergeGeneratedHeaders /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-o
     cd /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/app
     builtin-swiftHeaderTool -arch arm64 /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/Objects-normal/arm64/SiriAIWidget-Swift.h -o /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/DerivedSources/SiriAIWidget-Swift.h
 
-Copy /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAIWidget.swiftmodule/arm64-apple-ios.swiftmodule /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/Objects-normal/arm64/SiriAIWidget.swiftmodule (in target 'SiriAIWidget' from project 'SiriAI')
+Copy /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAIWidget.swiftmodule/arm64-apple-ios.swiftdoc /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/Objects-normal/arm64/SiriAIWidget.swiftdoc (in target 'SiriAIWidget' from project 'SiriAI')
     cd /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/app
-    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/Objects-normal/arm64/SiriAIWidget.swiftmodule /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAIWidget.swiftmodule/arm64-apple-ios.swiftmodule
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/Objects-normal/arm64/SiriAIWidget.swiftdoc /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAIWidget.swiftmodule/arm64-apple-ios.swiftdoc
 
 Copy /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAIWidget.swiftmodule/arm64-apple-ios.abi.json /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/Objects-normal/arm64/SiriAIWidget.abi.json (in target 'SiriAIWidget' from project 'SiriAI')
     cd /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/app
     builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/Objects-normal/arm64/SiriAIWidget.abi.json /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAIWidget.swiftmodule/arm64-apple-ios.abi.json
 
-Copy /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAIWidget.swiftmodule/arm64-apple-ios.swiftdoc /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/Objects-normal/arm64/SiriAIWidget.swiftdoc (in target 'SiriAIWidget' from project 'SiriAI')
+Copy /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAIWidget.swiftmodule/arm64-apple-ios.swiftmodule /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/Objects-normal/arm64/SiriAIWidget.swiftmodule (in target 'SiriAIWidget' from project 'SiriAI')
     cd /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/app
-    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/Objects-normal/arm64/SiriAIWidget.swiftdoc /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAIWidget.swiftmodule/arm64-apple-ios.swiftdoc
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/Objects-normal/arm64/SiriAIWidget.swiftmodule /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAIWidget.swiftmodule/arm64-apple-ios.swiftmodule
 
 Copy /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAIWidget.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/Objects-normal/arm64/SiriAIWidget.swiftsourceinfo (in target 'SiriAIWidget' from project 'SiriAI')
     cd /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/app
@@ -277,8 +277,8 @@ SwiftDriver\ Compilation SiriAI normal arm64 com.apple.xcode.tools.swift.compile
 ExtractAppIntentsMetadata (in target 'SiriAIWidget' from project 'SiriAI')
     cd /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/app
     /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --module-name SiriAIWidget --sdk-root /Applications/Xcode_16.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.5.sdk --xcode-version 16F6 --platform-family iOS --deployment-target 16.1 --bundle-identifier ai.siriplus.app.widget --output /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAIWidget.appex --target-triple arm64-apple-ios16.1 --binary-file /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAIWidget.appex/SiriAIWidget --dependency-file /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/Objects-normal/arm64/SiriAIWidget_dependency_info.dat --stringsdata-file /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/Objects-normal/arm64/ExtractedAppShortcutsMetadata.stringsdata --source-file-list /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/Objects-normal/arm64/SiriAIWidget.SwiftFileList --metadata-file-list /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/SiriAIWidget.DependencyMetadataFileList --static-metadata-file-list /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/SiriAIWidget.DependencyStaticMetadataFileList --swift-const-vals-list /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/Objects-normal/arm64/SiriAIWidget.SwiftConstValuesFileList --compile-time-extraction --deployment-aware-processing --validate-assistant-intents --no-app-shortcuts-localization
-2026-11-22 04:48:14.973 appintentsmetadataprocessor[12287:35815] Starting appintentsmetadataprocessor export
-2026-11-22 04:48:15.120 appintentsmetadataprocessor[12287:35815] Extracted no relevant App Intents symbols, skipping writing output
+2026-11-22 04:50:12.603 appintentsmetadataprocessor[7487:23356] Starting appintentsmetadataprocessor export
+2026-11-22 04:50:12.978 appintentsmetadataprocessor[7487:23356] Extracted no relevant App Intents symbols, skipping writing output
 
 GenerateDSYMFile /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAIWidget.appex.dSYM /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAIWidget.appex/SiriAIWidget (in target 'SiriAIWidget' from project 'SiriAI')
     cd /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/app
@@ -287,8 +287,8 @@ GenerateDSYMFile /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/
 AppIntentsSSUTraining (in target 'SiriAIWidget' from project 'SiriAI')
     cd /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/app
     /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsnltrainingprocessor --infoplist-path /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAIWidget.appex/Info.plist --temp-dir-path /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/ssu --bundle-id ai.siriplus.app.widget --product-path /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAIWidget.appex --extracted-metadata-path /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAIWidget.appex/Metadata.appintents --metadata-file-list /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAIWidget.build/SiriAIWidget.DependencyMetadataFileList --archive-ssu-assets
-2026-11-22 04:48:15.255 appintentsnltrainingprocessor[12289:35828] Parsing options for appintentsnltrainingprocessor
-2026-11-22 04:48:15.268 appintentsnltrainingprocessor[12289:35828] No AppShortcuts found - Skipping.
+2026-11-22 04:50:13.053 appintentsnltrainingprocessor[7493:23390] Parsing options for appintentsnltrainingprocessor
+2026-11-22 04:50:13.055 appintentsnltrainingprocessor[7493:23390] No AppShortcuts found - Skipping.
 
 RegisterExecutionPolicyException /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAIWidget.appex (in target 'SiriAIWidget' from project 'SiriAI')
     cd /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/app
@@ -324,13 +324,13 @@ Copy /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/Derive
     cd /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/app
     builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAI.build/Objects-normal/arm64/SiriAI.swiftmodule /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAI.swiftmodule/arm64-apple-ios.swiftmodule
 
-Copy /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAI.swiftmodule/arm64-apple-ios.abi.json /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAI.build/Objects-normal/arm64/SiriAI.abi.json (in target 'SiriAI' from project 'SiriAI')
-    cd /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/app
-    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAI.build/Objects-normal/arm64/SiriAI.abi.json /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAI.swiftmodule/arm64-apple-ios.abi.json
-
 Copy /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAI.swiftmodule/arm64-apple-ios.swiftdoc /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAI.build/Objects-normal/arm64/SiriAI.swiftdoc (in target 'SiriAI' from project 'SiriAI')
     cd /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/app
     builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAI.build/Objects-normal/arm64/SiriAI.swiftdoc /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAI.swiftmodule/arm64-apple-ios.swiftdoc
+
+Copy /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAI.swiftmodule/arm64-apple-ios.abi.json /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAI.build/Objects-normal/arm64/SiriAI.abi.json (in target 'SiriAI' from project 'SiriAI')
+    cd /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/app
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAI.build/Objects-normal/arm64/SiriAI.abi.json /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAI.swiftmodule/arm64-apple-ios.abi.json
 
 Copy /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Products/Release-iphoneos/SiriAI.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/build/DerivedData/Build/Intermediates.noindex/SiriAI.build/Release-iphoneos/SiriAI.build/Objects-normal/arm64/SiriAI.swiftsourceinfo (in target 'SiriAI' from project 'SiriAI')
     cd /Users/runner/work/siri-ai-on-old-iphone/siri-ai-on-old-iphone/app
