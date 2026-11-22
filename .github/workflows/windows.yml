@@ -1,0 +1,105 @@
+name: windows
+
+# The Windows half of the kernel: one .exe you can drive from cmd, and one
+# .dll + .lib + headers a C/C++ host links against. Same sources as iOS.
+# Runs on a real Windows runner, so the artifacts are MSVC-built x64 binaries.
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'kernel/**'
+      - 'scripts/**'
+      - 'patches/**'
+      - '.github/workflows/windows.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: windows x64 (exe + dll)
+    runs-on: windows-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch pinned runtime
+        shell: bash
+        run: bash ./scripts/fetch-runtime.sh
+
+      # 1) standalone exe: nothing else needs to be installed on the machine
+      - name: Configure (static, CLI)
+        shell: bash
+        run: |
+          cmake -S kernel -B build-exe -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSPK_BUILD_CLI=ON \
+            -DGGML_NATIVE=ON
+
+      - name: Build exe
+        shell: bash
+        run: cmake --build build-exe -j 4
+
+      # 2) dll + import library for hosts that want to LoadLibrary it
+      - name: Configure (shared)
+        shell: bash
+        run: |
+          cmake -S kernel -B build-dll -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSPK_LINK_SHARED=ON \
+            -DGGML_NATIVE=ON
+
+      - name: Build dll
+        shell: bash
+        run: cmake --build build-dll -j 4
+
+      - name: Smoke test the exe
+        shell: bash
+        run: |
+          ./build-exe/spk.exe --help | head -n 6
+          ./build-exe/spk.exe --model does-not-exist.gguf || true
+
+      - name: Assemble the package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/LLAI-1.0-windows-x64
+          cd dist/LLAI-1.0-windows-x64
+          cp ../../build-exe/spk.exe LLAI.exe
+          cp ../../build-dll/spk.dll LLAI.dll
+          # MSVC writes the import library next to the dll
+          if [ -f ../../build-dll/spk.lib ]; then cp ../../build-dll/spk.lib LLAI.lib; fi
+          cp ../../kernel/include/spk/spk.h .
+          cp ../../kernel/include/spk/spk_platform.h .
+          cp ../../docs/WINDOWS.md README.md
+          cd ..
+          ls -la LLAI-1.0-windows-x64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LLAI-windows-x64
+          path: dist/LLAI-1.0-windows-x64
+          if-no-files-found: error
+
+      - name: Publish to rolling release
+        if: success()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: windows-latest
+          name: LLAI kernel for Windows x64 (1.0)
+          body: |
+            LLAI.exe is the standalone CLI (no other files needed).
+            LLAI.dll + LLAI.lib + spk.h are for hosts that link or LoadLibrary it.
+            run ${{ github.run_id }} @ ${{ github.sha }}
+          prerelease: true
+          files: |
+            dist/LLAI-1.0-windows-x64/LLAI.exe
+            dist/LLAI-1.0-windows-x64/LLAI.dll
+            dist/LLAI-1.0-windows-x64/spk.h
+            dist/LLAI-1.0-windows-x64/spk_platform.h
+            dist/LLAI-1.0-windows-x64/README.md
