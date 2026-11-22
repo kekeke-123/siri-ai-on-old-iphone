@@ -93,6 +93,9 @@ struct spk_session {
 
 void spk_set_error(spk_engine * eng, const char * fmt, ...);
 
+// last few llama.cpp log lines, joined by '|'; empty when nothing logged
+void spk_log_tail(char * out, size_t len);
+
 spk_slot * spk_slot_for(spk_engine * eng, spk_model_role role);
 spk_status spk_slot_load(spk_engine * eng, spk_slot & slot);
 void       spk_slot_unload(spk_slot & slot);

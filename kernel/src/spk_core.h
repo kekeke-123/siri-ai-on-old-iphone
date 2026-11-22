@@ -45,6 +45,7 @@ typedef mtmd_helper_init_opt         spk_vision_opt;
 #define SPK_TYPE_Q8                GGML_TYPE_Q8_0
 #define SPK_TYPE_F16               GGML_TYPE_F16
 #define SPK_FLASH_AUTO             LLAMA_FLASH_ATTN_TYPE_AUTO
+#define SPK_FLASH_DISABLED         LLAMA_FLASH_ATTN_TYPE_DISABLED
 #define SPK_LOAD_MMAP              LLAMA_LOAD_MODE_MMAP
 #define SPK_LOAD_NONE              LLAMA_LOAD_MODE_NONE
 #define SPK_DEFAULT_SEED           LLAMA_DEFAULT_SEED

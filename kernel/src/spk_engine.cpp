@@ -28,12 +28,58 @@ static std::mutex        g_log_mu;
 static spk_log_cb        g_log_cb  = nullptr;
 static void *            g_log_ud  = nullptr;
 
+// llama.cpp explains the real reason for a failed decode (unsupported op, bad
+// tensor shape, allocation failure) only on its own log channel. On iOS nothing
+// is watching stderr, so the UI used to show a bare "-1". Keep the tail around
+// and let the error message carry it.
+static const int kLogTailLines = 5;
+static const int kLogTailWidth = 200;
+static char g_log_tail[kLogTailLines][kLogTailWidth];
+static int  g_log_head = 0;
+
 static void spk_log_trampoline(spk_log_level level, const char * text, void * /*ud*/) {
     std::lock_guard<std::mutex> lock(g_log_mu);
+
+    if (text != nullptr) {
+        char * slot = g_log_tail[g_log_head];
+        strncpy(slot, text, (size_t) kLogTailWidth - 1);
+        slot[kLogTailWidth - 1] = '\0';
+        for (char * c = slot; *c != '\0'; ++c) {
+            if (*c == '\n' || *c == '\r') { *c = '\0'; break; }
+        }
+        g_log_head = (g_log_head + 1) % kLogTailLines;
+    }
+
     if (g_log_cb == nullptr || text == nullptr) {
         return;
     }
     g_log_cb((int32_t) level, text, g_log_ud);
+}
+
+void spk_log_tail(char * out, size_t len) {
+    if (out == nullptr || len == 0) {
+        return;
+    }
+    std::lock_guard<std::mutex> lock(g_log_mu);
+    out[0] = '\0';
+    size_t used = 0;
+    for (int i = 0; i < kLogTailLines; ++i) {
+        const int idx = (g_log_head + i) % kLogTailLines;
+        const char * line = g_log_tail[idx];
+        if (line[0] == '\0') {
+            continue;
+        }
+        size_t n = strlen(line);
+        if (used + n + 2 >= len) {
+            break;
+        }
+        memcpy(out + used, line, n);
+        used += n;
+        out[used++] = '|';
+    }
+    if (used > 0) {
+        out[used - 1] = '\0';
+    }
 }
 
 void spk_engine_set_log_callback(spk_engine * eng, spk_log_cb cb, void * user_data) {
@@ -148,12 +194,15 @@ static spk_context_params spk_make_ctx_params(spk_engine * eng) {
     cp.n_threads_batch = cp.n_threads;
 
     cp.n_seq_max  = 1;
-    cp.flash_attn_type = SPK_FLASH_AUTO;
+    cp.flash_attn_type = SPK_FLASH_DISABLED;
 
-    // Q8 KV halves the cache footprint on a 1B model with no measurable quality
-    // loss at temperature 0.7, and it is what makes 4096 tokens fit in 4 GB.
-    cp.type_k = SPK_TYPE_Q8;
-    cp.type_v = SPK_TYPE_Q8;
+    // K/V stay f16 and flash attention stays off. Q8 K/V + FA is what made the
+    // first decode fail on device (-1 at pos 0) while the exact same weights
+    // decoded fine on the CPU path; Qwen3.5 keeps hybrid attention/SSM state
+    // that the quantised cache path does not lay out correctly. Correctness
+    // first: 3072 ctx at f16 is ~40 MB, not worth a model that cannot answer.
+    cp.type_k = SPK_TYPE_F16;
+    cp.type_v = SPK_TYPE_F16;
 
     cp.offload_kqv = eng->metal;
     cp.no_perf     = false;

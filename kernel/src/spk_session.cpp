@@ -44,7 +44,13 @@ bool spk_eval_chunk(spk_engine * eng, spk_session * ses,
     spk_batch_free(batch);
 
     if (rc != 0) {
-        spk_set_error(eng, "decode failed with %d at pos %d", rc, (int) ses->n_past);
+        char tail[600];
+        spk_log_tail(tail, sizeof(tail));
+        if (tail[0] != '\0') {
+            spk_set_error(eng, "decode failed with %d at pos %d · %s", rc, (int) ses->n_past, tail);
+        } else {
+            spk_set_error(eng, "decode failed with %d at pos %d", rc, (int) ses->n_past);
+        }
         return false;
     }
     ses->n_past += n;

@@ -98,7 +98,10 @@ static NSError * spk_error(spk_status st, NSString * message) {
     cfg.n_ctx        = 0;     // auto from physical RAM
     cfg.n_batch      = 256;
     cfg.n_ubatch     = 128;
-    cfg.use_metal    = true;
+    // Metal is opt-in. On an A14 the hybrid Qwen3.5 graph failed the very first
+    // decode on the GPU path while the identical weights ran on CPU, so the
+    // default has to be the one that answers.
+    cfg.use_metal    = [[NSUserDefaults standardUserDefaults] boolForKey:@"spk.metal.enabled"];
     cfg.use_mmap     = true;
     cfg.secure_mode  = true;  // escape markup + wipe KV on destroy
     cfg.max_model_gb = 0.0;   // auto guard: 45% of RAM

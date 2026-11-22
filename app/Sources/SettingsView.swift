@@ -34,6 +34,15 @@ struct SettingsView: View {
                     }
                 }
 
+                Section(header: Text("推理后端"),
+                        footer: Text("Metal 默认关闭：A14 上 Qwen3.5 的混合层在 GPU 上第一次解码就报 -1，同一份权重走 CPU 正常。开启后要重新加载模型才生效。")) {
+                    Toggle("Metal 加速（实验）", isOn: Binding(
+                        get: { UserDefaults.standard.bool(forKey: "spk.metal.enabled") },
+                        set: { UserDefaults.standard.set($0, forKey: "spk.metal.enabled") }
+                    ))
+                    Button("重新加载当前模型") { model.reload() }
+                }
+
                 Section(header: Text("Models 文件夹（直接拖进去）"),
                         footer: Text("路径：「文件」App → 我的 iPhone → \(Bundle.main.displayName) → Models。把 .gguf 拖进去，回到 App 会自动识别并加载。")) {
                     if model.localModels.isEmpty {

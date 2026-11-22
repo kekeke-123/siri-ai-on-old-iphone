@@ -87,6 +87,21 @@ final class AssistantModel: ObservableObject {
         }
     }
 
+    /// The engine config (backend, batch sizes) is read when the context is
+    /// created, so switching backend only takes effect after a reload.
+    func reload() {
+        ready = false
+        errorText = nil
+        ModelStore.prepare()
+        localModels = ModelStore.existing()
+        if let first = localModels.first {
+            loadLocal(first)
+            return
+        }
+        builtinAttempted = false
+        loadBuiltinIfAvailable()
+    }
+
     func importModel(_ url: URL, mmproj: URL?) {
         statusLine = "正在导入模型…"
         errorText = nil
