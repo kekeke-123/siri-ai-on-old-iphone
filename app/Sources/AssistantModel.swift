@@ -27,6 +27,7 @@ final class AssistantModel: ObservableObject {
     @Published var thinking = false
     @Published var mode: ModelMode = .auto
     @Published var activeTier: ModelTier?
+    @Published var localModels: [URL] = []
 
     private let bridge = SPKAssistant.instance()
     private let synth = AVSpeechSynthesizer()
@@ -45,6 +46,46 @@ final class AssistantModel: ObservableObject {
     }
 
     // MARK: models
+
+    /// The Models directory is created on every launch (not only during an
+    /// import) so it shows up in the Files app and files can be dropped in
+    /// directly. Everything found there is listed and, on first launch,
+    /// auto-selected.
+    func refreshLocalModels() {
+        ModelStore.prepare()
+        let found = ModelStore.existing()
+        localModels = found
+        if found.isEmpty && !ready {
+            statusLine = "Models 文件夹是空的：放一个 .gguf 进去再回来"
+        }
+    }
+
+    /// Load a weight file that already lives in the sandbox (no copy).
+    func loadLocal(_ url: URL) {
+        errorText = nil
+        statusLine = "正在加载 \(url.lastPathComponent)…"
+        ready = false
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            let loadError = self.bridge.loadModel(atPath: url.path, mmprojPath: nil)
+            let info = self.bridge.info()
+            DispatchQueue.main.async {
+                if let loadError = loadError {
+                    self.errorText = loadError
+                    self.statusLine = "\(url.lastPathComponent) 加载失败"
+                    self.ready = false
+                    return
+                }
+                self.ready = true
+                self.activeTier = nil
+                self.mode = .custom
+                UserDefaults.standard.set(ModelMode.custom.rawValue, forKey: "spk.model.mode")
+                self.visionReady = self.bridge.visionReady
+                self.modelLabel = (info["desc"] as? String) ?? url.lastPathComponent
+                self.statusLine = "就绪 · \(self.threadCount(info)) 线程 · \(self.context(info)) ctx"
+            }
+        }
+    }
 
     func importModel(_ url: URL, mmproj: URL?) {
         statusLine = "正在导入模型…"
@@ -107,15 +148,22 @@ final class AssistantModel: ObservableObject {
     // MARK: bundled tiers
 
     func loadBuiltinIfAvailable() {
+        ModelStore.prepare()
+        let found = ModelStore.existing()
+        localModels = found
         guard !ready, !builtinAttempted else { return }
         builtinAttempted = true
         if mode == .api {
             statusLine = RemoteBackend.shared.isConfigured ? "API 模式" : "还没配 API"
             return
         }
+        if let first = found.first {
+            loadLocal(first)
+            return
+        }
         let wanted = mode.tier ?? DeviceProfile.defaultTier
         guard let tier = ModelRouter.resolve(wanted), let url = ModelTier.bundledURL(tier) else {
-            statusLine = "没有可用的内置模型"
+            statusLine = "Models 文件夹是空的：放一个 .gguf 进去再回来"
             return
         }
         load(tier: tier, url: url)
@@ -339,6 +387,18 @@ enum ModelStore {
         return base.appendingPathComponent("Models", isDirectory: true)
     }
 
+    /// Create Documents/Models eagerly so it is visible in the Files app
+    /// (UIFileSharingEnabled exposes Documents, not its absent subfolders).
+    @discardableResult
+    static func prepare() -> Bool {
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            return true
+        } catch {
+            return false
+        }
+    }
+
     static func importFile(_ url: URL) throws -> URL {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let dst = directory.appendingPathComponent(url.lastPathComponent)
@@ -346,6 +406,9 @@ enum ModelStore {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
 
+        if dst.standardizedFileURL == url.standardizedFileURL {
+            return dst
+        }
         if FileManager.default.fileExists(atPath: dst.path) {
             try FileManager.default.removeItem(at: dst)
         }
