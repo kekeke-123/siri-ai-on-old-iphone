@@ -1,5 +1,5 @@
 /*
- * spk_selftest - a headless smoke test for the Siri Plus Kernel.
+ * spk_selftest - a headless smoke test for the LLAI Kernel.
  *
  * It lives outside the app so CI can prove, on a real GGUF, that the kernel
  * loads a model, prefills, decodes, snapshots and restores the sequence. It

@@ -1,7 +1,7 @@
 # Siri AI on old iPhone
 
 > 把新一代 Siri AI 的**界面、语音交互和系统入口**，复刻到 iPhone 15 Pro 以下的老机型上。
-> 底层不是调云端 API，而是在设备上跑一个深度魔改过的本地推理运行时——**自研 Siri Plus 内核（SPK）**。
+> 底层不是调云端 API，而是在设备上跑一个深度魔改过的本地推理运行时——**自研 LLAI 内核**。
 
 ![status](https://img.shields.io/badge/build-GitHub%20Actions-blue) ![license](https://img.shields.io/badge/license-MIT-green) ![platform](https://img.shields.io/badge/iOS-15.0%2B-lightgrey)
 
@@ -46,7 +46,7 @@
 ├──────────────────────────────────────────────────────────┤
 │ SPKBridge (ObjC++)  — 唯一的 Objective-C 边界            │
 ├──────────────────────────────────────────────────────────┤
-│ Siri Plus Kernel (C ABI: spk_*)                          │
+│ LLAI Kernel (C ABI: spk_*)                          │
 │   spk_engine   : 模型/上下文/角色槽位/热策略/内存压力     │
 │   spk_session  : 模板、前缀 KV 复用、解码循环、快照       │
 │   spk_vision   : 图像编码 + 多模态评估                    │

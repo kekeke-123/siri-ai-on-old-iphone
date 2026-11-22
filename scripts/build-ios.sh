@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the Siri Plus Kernel as device (arm64) static libraries.
+# Build the LLAI Kernel as device (arm64) static libraries.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

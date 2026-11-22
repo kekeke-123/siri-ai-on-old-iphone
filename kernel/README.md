@@ -1,4 +1,4 @@
-# Siri Plus Kernel
+# LLAI Kernel
 
 The kernel is a modified llama.cpp runtime with a C-only ABI (`spk.h`).
 

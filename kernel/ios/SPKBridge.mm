@@ -2,7 +2,7 @@
 //  SPKBridge.mm
 //  Siri AI on old iPhone
 //
-//  ObjC++ shim between Swift and the Siri Plus Kernel C API.
+//  ObjC++ shim between Swift and the LLAI Kernel C API.
 //  One engine, one long lived session, one serial inference queue.
 //
 #import "SPKBridge.h"

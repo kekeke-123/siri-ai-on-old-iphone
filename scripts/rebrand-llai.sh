@@ -17,13 +17,13 @@ sed -i 's/#define SPK_VERSION_STRING "1\.4\.0"/#define SPK_VERSION_STRING "1.0.0
     kernel/include/spk/spk.h
 
 echo "== product name: LLAI =="
-files=$(git grep -l -e "Siri Plus Kernel" -e "Siri Plus 内核" || true)
+files=$(git grep -l -e "LLAI Kernel" -e "LLAI 内核" || true)
 if [ -n "$files" ]; then
     for f in $files; do
         sed -i \
-            -e 's/Siri Plus Kernel/LLAI Kernel/g' \
-            -e 's/Siri Plus 内核（SPK）/LLAI 内核/g' \
-            -e 's/Siri Plus 内核/LLAI 内核/g' \
+            -e 's/LLAI Kernel/LLAI Kernel/g' \
+            -e 's/LLAI 内核/LLAI 内核/g' \
+            -e 's/LLAI 内核/LLAI 内核/g' \
             "$f"
     done
 fi

@@ -1,5 +1,5 @@
 /*
- * Siri Plus Kernel (SPK) - public C API
+ * LLAI Kernel (SPK) - public C API
  *
  * A thin, embeddable inference runtime built on a heavily modified llama.cpp.
  * Everything here is safe to call from Swift/Objective-C through SPKBridge,
@@ -28,7 +28,7 @@ extern "C" {
 #define SPK_VERSION_MAJOR 1
 #define SPK_VERSION_MINOR 4
 #define SPK_VERSION_PATCH 0
-#define SPK_VERSION_STRING "1.4.0"
+#define SPK_VERSION_STRING "1.0.0"
 
 /* ------------------------------------------------------------------ */
 /* status codes                                                        */

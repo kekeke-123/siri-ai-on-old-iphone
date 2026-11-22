@@ -1,4 +1,4 @@
-# Siri Plus Kernel x Qwen 3.5
+# LLAI Kernel x Qwen 3.5
 
 Compatibility record for the bundled Qwen family, in particular the **hybrid**
 Qwen 3.5 models (`qwen35`, and the MoE sibling `qwen35moe`) that the app ships

@@ -2,7 +2,7 @@
 
 ## Runtime
 
-The Siri Plus Kernel (`kernel/`) is a self-contained C/C++ library that links
+The LLAI Kernel (`kernel/`) is a self-contained C/C++ library that links
 against the open source inference runtime **llama.cpp**, licensed under the MIT
 license, copyright the ggml authors.
 

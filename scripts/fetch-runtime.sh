@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fetch the pinned runtime and apply the Siri Plus Kernel patch series.
+# Fetch the pinned runtime and apply the LLAI Kernel patch series.
 # Everything lands in third_party/runtime, which is git-ignored.
 set -euo pipefail
 
