@@ -1,0 +1,80 @@
+diff --git a/app/Sources/AssistantView.swift b/app/Sources/AssistantView.swift
+index dcd159a..14986e5 100644
+--- a/app/Sources/AssistantView.swift
++++ b/app/Sources/AssistantView.swift
+@@ -45,12 +45,14 @@ struct AssistantView: View {
+         .sheet(isPresented: $showSettings) {
+             SettingsView(model: model, voice: voice)
+         }
+-        .fileImporter(isPresented: $showModelPicker,
+-                      allowedContentTypes: [gguf],
+-                      allowsMultipleSelection: false) { result in
+-            if case .success(let urls) = result, let url = urls.first {
++        .fullScreenCover(isPresented: $showModelPicker) {
++            ModelDocumentPicker(types: [gguf], onPick: { url in
++                showModelPicker = false
+                 model.importModel(url, mmproj: nil)
+-            }
++            }, onCancel: {
++                showModelPicker = false
++            })
++            .ignoresSafeArea()
+         }
+         .fileImporter(isPresented: $showImagePicker,
+                       allowedContentTypes: [.image],
+@@ -64,7 +66,8 @@ struct AssistantView: View {
+             if let pending = Handoff.shared.take() {
+                 model.send(pending)
+             }
+-            if !model.ready && ModelStore.existing().isEmpty {
++            model.refreshLocalModels()
++            if !model.ready && model.localModels.isEmpty {
+                 showSettings = true
+             }
+         }
+diff --git a/app/Sources/Info.plist b/app/Sources/Info.plist
+index 499291b..a5d9be1 100644
+--- a/app/Sources/Info.plist
++++ b/app/Sources/Info.plist
+@@ -82,5 +82,23 @@
+             </dict>
+         </dict>
+     </array>
++    <key>CFBundleDocumentTypes</key>
++    <array>
++        <dict>
++            <key>CFBundleTypeName</key>
++            <string>GGUF model weights</string>
++            <key>CFBundleTypeRole</key>
++            <string>Editor</string>
++            <key>LSHandlerRank</key>
++            <string>Alternate</string>
++            <key>LSItemContentTypes</key>
++            <array>
++                <string>ai.siriplus.gguf</string>
++                <string>public.data</string>
++            </array>
++        </dict>
++    </array>
++    <key>LSSupportsOpeningDocumentsInPlace</key>
++    <true/>
+ </dict>
+ </plist>
+diff --git a/app/Sources/SiriAIApp.swift b/app/Sources/SiriAIApp.swift
+index 38bc44a..d54399f 100644
+--- a/app/Sources/SiriAIApp.swift
++++ b/app/Sources/SiriAIApp.swift
+@@ -25,6 +25,13 @@ struct SiriAIApp: App {
+     }
+ 
+     private func handle(_ url: URL) {
++        // Files app / share sheet "open in SiriAI" delivers a file URL.
++        // The payload is copied into the sandbox and loaded, same path as the
++        // in-app picker, so both entry points behave identically.
++        if url.isFileURL {
++            AssistantModel.shared.importModel(url, mmproj: nil)
++            return
++        }
+         guard url.scheme == "siri-ai" else { return }
+         let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+         let query = components?.queryItems?.first(where: { $0.name == "q" })?.value
