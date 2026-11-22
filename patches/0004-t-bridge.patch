@@ -20,5 +20,5 @@ index 0d631b0..7aacfa4 100644
 +        cfg.use_metal = [defaults boolForKey:@"spk.metal.enabled"];
 +    }
      cfg.use_mmap     = true;
-     cfg.secure_mode  = true;  // escape markup + wipe KV on destroy       // escape markup + wipe KV on destroy
+     cfg.secure_mode  = true;  // escape markup + wipe KV on destroy
      cfg.max_model_gb = 0.0;   // auto guard: 45% of RAM
